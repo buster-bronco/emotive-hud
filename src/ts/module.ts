@@ -1,7 +1,7 @@
-// Do not remove this import. If you do Vite will think your styles are dead
-// code and not include them in the build output.
+// module.ts
 import "../styles/style.scss";
 import DogBrowser from "./apps/dogBrowser";
+import EmotiveHUD from "./apps/EmotiveHUD";
 import { moduleId } from "./constants";
 import { MyModule } from "./types";
 
@@ -12,8 +12,10 @@ Hooks.once("init", () => {
 
   module = (game as Game).modules.get(moduleId) as MyModule;
   module.dogBrowser = new DogBrowser();
+  module.emotiveHUD = new EmotiveHUD();
 });
 
+// Dog HUD from template. for sanity checking
 Hooks.on("renderActorDirectory", (_: Application, html: JQuery) => {
   const button = $(
     `<button class="cc-sidebar-button" type="button">🐶</button>`
@@ -22,4 +24,9 @@ Hooks.on("renderActorDirectory", (_: Application, html: JQuery) => {
     module.dogBrowser.render(true);
   });
   html.find(".directory-header .action-buttons").append(button);
+});
+
+// EmotiveHUD hook
+Hooks.once("ready", () => {
+  module.emotiveHUD.render(true);
 });
