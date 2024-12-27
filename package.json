@@ -1,0 +1,19 @@
+{
+  "name": "emotive-hud",
+  "version": "1.0.0",
+  "description": "A expression HUD for FoundryVTT",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc && vite build",
+    "watch": "tsc && vite build --watch"
+  },
+  "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "^9.280.1",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-scss": "^4.0.1",
+    "sass": "^1.83.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6"
+  }
+}

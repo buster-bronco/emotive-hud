@@ -1,0 +1,1 @@
+Uses https://github.com/Lazrius/FoundryVTT-Typescript-Module-Template
