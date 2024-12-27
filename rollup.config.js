@@ -5,24 +5,27 @@ const typescript = require("@rollup/plugin-typescript");
 const scss = require("rollup-plugin-scss");
 const copy = require("rollup-plugin-copy");
 const json = require("@rollup/plugin-json");
+require('dotenv').config();
 
 const moduleVersion = process.env.MODULE_VERSION;
 const githubProject = process.env.GH_PROJECT;
 const githubTag = process.env.GH_TAG;
+const foundryPath = process.env.FOUNDRY_VTT_PATH;
+const isDev = process.env.NODE_ENV === 'development';
 
 module.exports = {
-  input: "src/ts/module.ts", // Your TypeScript entry point
+  input: "src/ts/module.ts",
   output: {
-    dir: "dist/scripts", // Output directory
-    entryFileNames: "module.js", // Output file name
-    format: "es", // ES module format
-    sourcemap: true, // Include source maps
+    dir: "dist/scripts",
+    entryFileNames: "module.js",
+    format: "es",
+    sourcemap: true,
   },
   plugins: [
-    resolve(), // Resolve Node.js-style imports
-    commonjs(), // Handle CommonJS modules
-    typescript(), // Compile TypeScript files
-    json(), // Add this plugin to handle JSON imports
+    resolve(),
+    commonjs(),
+    typescript(),
+    json(),
     scss({
       input: "src/styles/style.scss",
       output: function(styles, styleNodes) {
@@ -39,9 +42,25 @@ module.exports = {
         { src: "src/languages", dest: "dist" },
         { src: "src/templates", dest: "dist" },
       ],
-      hook: "writeBundle", // Run this during the write phase
+      hook: "writeBundle",
     }),
-    updateModuleManifestPlugin(), // Custom plugin for manifest updates
+    updateModuleManifestPlugin(),
+    {
+      name: 'foundry-copy',
+      closeBundle: async () => {  // Changed from writeBundle to closeBundle
+        if (isDev && foundryPath) {
+          try {
+            await fsPromises.cp('dist', foundryPath, { 
+              recursive: true,
+              force: true
+            });
+            console.log(`Copied to Foundry modules directory: ${foundryPath}`);
+          } catch (err) {
+            console.error('Failed to copy to Foundry directory:', err);
+          }
+        }
+      }
+    },
   ],
 };
 
