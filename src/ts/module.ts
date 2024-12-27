@@ -1,9 +1,9 @@
-// module.ts
 import "../styles/style.scss";
 import DogBrowser from "./apps/dogBrowser";
 import EmotiveHUD from "./apps/EmotiveHUD";
 import { moduleId } from "./constants";
 import { MyModule } from "./types";
+import { registerSettings } from "./settings";
 
 let module: MyModule;
 
@@ -24,6 +24,11 @@ Hooks.on("renderActorDirectory", (_: Application, html: JQuery) => {
     module.dogBrowser.render(true);
   });
   html.find(".directory-header .action-buttons").append(button);
+});
+
+// When initializing the module
+Hooks.once('init', () => {
+  registerSettings();
 });
 
 // EmotiveHUD hook
