@@ -1,13 +1,33 @@
-.emotive-actor-select {
+.expressive-actor-select {
     background-color: #f0f0f0;
     border: 1px solid #ccc;
     padding: 10px;
     border-radius: 5px;
-    width: 200px;
+    width: 100%; // Ensure the container takes up the full width
+    height: 100%; // Ensure the container takes up the full height
   
     h2 {
       font-size: 1.2em;
       margin-bottom: 10px;
+    }
+  
+    .content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+  
+    .drag-area {
+      background-color: #e0e0e0;
+      border: 1px dashed #ccc;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      flex: 1; // Takes up half of the height
+  
+      &:hover {
+        background-color: #d0d0d0;
+      }
     }
   
     .refresh-button {
@@ -17,29 +37,18 @@
       padding: 5px 10px;
       border-radius: 3px;
       cursor: pointer;
-      margin-bottom: 10px;
+      margin: 5px 0;
   
       &:hover {
         background-color: #45a049;
       }
     }
   
-    .drag-area {
-      background-color: #e0e0e0;
-      border: 1px dashed #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-      text-align: center;
-      cursor: pointer;
-  
-      &:hover {
-        background-color: #d0d0d0;
-      }
-    }
-  
     .actor-list {
       list-style-type: none;
       padding: 0;
+      flex: 1; // Takes up the other half of the height
+      overflow-y: auto; // Allows scrolling if there are many actors
   
       .actor-item {
         padding: 5px;

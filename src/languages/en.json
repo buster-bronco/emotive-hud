@@ -1,6 +1,8 @@
 {
-  "MYMODULE.dog-browser": "Dog browser",
-  "MYMODULE.dogs": "Dogs",
-  "MYMODULE.fetch-random-dog": "Fetch random dog photo",
-  "MYMODULE.random-dog-alt": "Image of a random dog"
+  "EMOTIVEHUD.dog-browser": "Dog browser",
+  "EMOTIVEHUD.dogs": "Dogs",
+  "EMOTIVEHUD.fetch-random-dog": "Fetch random dog photo",
+  "EMOTIVEHUD.random-dog-alt": "Image of a random dog",
+
+  "EMOTIVEHUD.emotive-actor-selector": "Emotive HUD Actor Selector"
 }

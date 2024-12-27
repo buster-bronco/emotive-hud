@@ -4,7 +4,7 @@ export default class DogBrowser extends Application {
   private imageUrl? = "";
 
   override get title(): string {
-    return (game as Game).i18n.localize("MYMODULE.dog-browser");
+    return (game as Game).i18n.localize("EMOTIVEHUD.dog-browser");
   }
 
   static override get defaultOptions(): ApplicationOptions {
