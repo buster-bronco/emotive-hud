@@ -5,15 +5,20 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "tsc && vite build",
-    "watch": "tsc && vite build --watch"
+    "build": "rollup -c",
+    "watch": "rollup -c --watch"
   },
   "devDependencies": {
     "@league-of-foundry-developers/foundry-vtt-types": "^9.280.1",
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "rollup": "^4.29.1",
     "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-scss": "^4.0.1",
     "sass": "^1.83.0",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.6"
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
   }
 }
