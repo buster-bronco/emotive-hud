@@ -1,16 +1,16 @@
 import "../styles/style.scss";
 import DogBrowser from "./apps/dogBrowser";
 import EmotiveHUD from "./apps/EmotiveHUD";
-import { moduleId } from "./constants";
+import { CONSTANTS } from "./constants";
 import { MyModule } from "./types";
 import { registerSettings } from "./settings";
 
 let module: MyModule;
 
 Hooks.once("init", () => {
-  console.log(`Initializing ${moduleId}`);
+  console.log(`Initializing ${CONSTANTS.MODULE_ID}`);
 
-  module = (game as Game).modules.get(moduleId) as MyModule;
+  module = (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
   module.dogBrowser = new DogBrowser();
   module.emotiveHUD = new EmotiveHUD();
 });

@@ -1,4 +1,4 @@
-import { moduleId } from "../constants";
+import { CONSTANTS } from "../constants";
 
 export default class DogBrowser extends Application {
   private imageUrl? = "";
@@ -10,7 +10,7 @@ export default class DogBrowser extends Application {
   static override get defaultOptions(): ApplicationOptions {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "dog-browser",
-      template: `modules/${moduleId}/templates/dogs.hbs`,
+      template: `modules/${CONSTANTS.MODULE_ID}/templates/dogs.hbs`,
       width: 720,
       height: 720,
     }) as ApplicationOptions;
