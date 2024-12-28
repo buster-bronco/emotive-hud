@@ -24,31 +24,31 @@ export default class EmotiveActorSelector extends Application {
     ];
   }
 
-    protected override _canDragStart(selector: string | undefined): boolean {
-      if (!selector) return false;
-      console.log("Checking if can drag start for selector:", selector);
-      return true;
-    }
-    
-    protected override _canDragDrop(selector: string | undefined): boolean {
-      if (!selector) return false;
-      console.log("Checking if can drop for selector:", selector);
-      return true;
-    }
+  protected override _canDragStart(selector: string | undefined): boolean {
+    if (!selector) return false;
+    console.log("Checking if can drag start for selector:", selector);
+    return true;
+  }
+  
+  protected override _canDragDrop(selector: string | undefined): boolean {
+    if (!selector) return false;
+    console.log("Checking if can drop for selector:", selector);
+    return true;
+  }
 
-    protected override _onDragStart(event: DragEvent): void {
-      if (!event.dataTransfer) return;
-      
-      const target = event.currentTarget as HTMLElement;
-      const actorId = target.dataset.actorId;
-      
-      console.log("Actor selected for drag:", actorId);
-      
-      event.dataTransfer.setData("text/plain", JSON.stringify({
-        type: "Actor",
-        id: actorId
-      }));
-    }
+  protected override _onDragStart(event: DragEvent): void {
+    if (!event.dataTransfer) return;
+    
+    const target = event.currentTarget as HTMLElement;
+    const actorId = target.dataset.actorId;
+    
+    console.log("Actor selected for drag:", actorId);
+    
+    event.dataTransfer.setData("text/plain", JSON.stringify({
+      type: "Actor",
+      id: actorId
+    }));
+  }
 
   protected _onDragDrop(event: DragEvent): void {
     if (!event.dataTransfer) return;
