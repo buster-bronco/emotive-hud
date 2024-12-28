@@ -26,13 +26,13 @@ export default class EmotiveActorSelector extends Application {
 
   protected override _canDragStart(selector: string | undefined): boolean {
     if (!selector) return false;
-    console.log("Checking if can drag start for selector:", selector);
+    console.log(CONSTANTS.DEBUG_PREFIX, "Checking if can drag start for selector:", selector);
     return true;
   }
   
   protected override _canDragDrop(selector: string | undefined): boolean {
     if (!selector) return false;
-    console.log("Checking if can drop for selector:", selector);
+    console.log(CONSTANTS.DEBUG_PREFIX, "Checking if can drop for selector:", selector);
     return true;
   }
 
@@ -42,7 +42,7 @@ export default class EmotiveActorSelector extends Application {
     const target = event.currentTarget as HTMLElement;
     const actorId = target.dataset.actorId;
     
-    console.log("Actor selected for drag:", actorId);
+    console.log(CONSTANTS.DEBUG_PREFIX, "Actor selected for drag:", actorId);
     
     event.dataTransfer.setData("text/plain", JSON.stringify({
       type: "Actor",
@@ -59,7 +59,7 @@ export default class EmotiveActorSelector extends Application {
       if (data.type === "Actor" && data.uuid) {
         // Check if actor is already in the list
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
-          console.log("Processing Actor drop with ID:", data.id);
+          console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.id);
           this.selectedActors.push(data);
           this.render(false); // Re-render to update the list
         }
@@ -102,7 +102,7 @@ export default class EmotiveActorSelector extends Application {
       })
     );
 
-    console.log("selectedActors:", enrichedActors);
+    console.log(CONSTANTS.DEBUG_PREFIX, "selectedActors:", enrichedActors);
   
     return {
       selectedActors: enrichedActors,
