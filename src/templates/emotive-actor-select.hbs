@@ -6,7 +6,8 @@
         <ul class="selected-actors-list">
           {{#each selectedActors}}
             <li class="selected-actor">
-              {{this.uuid}}
+              <img class="actor-portrait" src="{{this.img}}" alt="{{this.name}}"/>
+              <span class="actor-name">{{this.name}}</span>
               <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
             </li>
           {{/each}}

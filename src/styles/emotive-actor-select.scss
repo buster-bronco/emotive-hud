@@ -3,8 +3,8 @@
   border: 1px solid #ccc;
   padding: 10px;
   border-radius: 5px;
-  width: 100%; // Ensure the container takes up the full width
-  height: 100%; // Ensure the container takes up the full height
+  width: 100%;
+  height: 100%;
 
   h2 {
     font-size: 1.2em;
@@ -44,27 +44,6 @@
     }
   }
 
-  .actor-list {
-    list-style-type: none;
-    padding: 0;
-    flex: 1; 
-    overflow-y: auto;
-
-    .actor-item {
-      padding: 5px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      &:hover {
-        background-color: #e0e0e0;
-      }
-    }
-  }
-
   .selected-actors-list {
     list-style: none;
     padding: 0;
@@ -73,24 +52,49 @@
 
   .selected-actor {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 8px;
+    padding: 4px 8px;
     margin: 4px 0;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
+    gap: 8px; // Provides consistent spacing between elements
+  }
+
+  .actor-portrait {
+    width: 64px;
+    height: 64px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .actor-name {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 4px;
+    font-size: 1.3em;
   }
 
   .remove-actor {
-    background: none;
+    background-color: #ff4444;
     border: none;
-    color: #ff4444;
+    color: white;
     cursor: pointer;
     font-size: 1.2em;
-    padding: 0 8px;
-  }
-
-  .remove-actor:hover {
-    color: #ff0000;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+      background-color: #ff0000;
+    }
   }
 }

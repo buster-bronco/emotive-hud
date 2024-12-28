@@ -12,6 +12,11 @@ export const CONSTANTS = {
    * The display name of the module
    */
   MODULE_NAME: "Emotive HUD",
+
+  /**
+   * Debugging prefix console messages
+   */
+  DEBUG_PREFIX: "EMOTIVE-HUD:"
 } as const;
 
 // Using 'as const' makes all properties read-only and gives better type inference

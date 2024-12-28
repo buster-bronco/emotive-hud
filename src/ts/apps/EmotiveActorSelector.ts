@@ -55,14 +55,12 @@ export default class EmotiveActorSelector extends Application {
     
     try {
       const data = JSON.parse(event.dataTransfer.getData("text/plain"));
-      console.log("Actor dropped:", data);
       
       if (data.type === "Actor" && data.uuid) {
         // Check if actor is already in the list
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
-          console.log("Processing actor drop with ID:", data.id);
+          console.log("Processing Actor drop with ID:", data.id);
           this.selectedActors.push(data);
-          console.log("Selected Actors List:", this.selectedActors);
           this.render(false); // Re-render to update the list
         }
       }
@@ -92,9 +90,22 @@ export default class EmotiveActorSelector extends Application {
     }) as ApplicationOptions;
   }
 
-  override getData() {
+  override async getData() {
+    const enrichedActors = await Promise.all(
+      this.selectedActors.map(async (actorRef) => {
+        const actor = await fromUuid(actorRef.uuid) as Actor; // Cast to Actor type
+        return {
+          ...actorRef,
+          name: actor?.name,
+          img: actor?.img,
+        };
+      })
+    );
+
+    console.log("selectedActors:", enrichedActors);
+  
     return {
-      selectedActors: this.selectedActors,
+      selectedActors: enrichedActors,
     };
   }
 
