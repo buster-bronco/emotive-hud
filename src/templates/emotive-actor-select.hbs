@@ -6,8 +6,14 @@
         <ul class="selected-actors-list">
           {{#each selectedActors}}
             <li class="selected-actor">
-              <img class="actor-portrait" src="{{this.img}}" alt="{{this.name}}"/>
+              <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}"/>
               <span class="actor-name">{{this.name}}</span>
+              <div class="portrait-controls">
+                <button class="select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Portrait Folder">
+                  <i class="fas fa-folder"></i>
+                </button>
+                <span class="portrait-path">{{this.portraitPath}}</span>
+              </div>
               <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
             </li>
           {{/each}}
