@@ -1,13 +1,13 @@
 <div class="emotive-hud {{#if isVertical}}vertical{{else}}horizontal{{/if}} {{#if isMinimized}}minimized{{/if}}">
-    <div class="portrait-container">
-        {{#each portraits}}
-            <div class="portrait" data-actor-id="{{actorId}}">
-                <img src="{{imgSrc}}" alt="{{name}}">
-            </div>
-        {{/each}}
-    </div>
-    <div class="hud-controls">
-        <button class="orientation-toggle"></button>
-        <button class="minimize-toggle"></button>
-    </div>
+  <div class="portrait-container">
+    {{#each portraits}}
+      <div class="portrait" data-actor-id="{{actorId}}">
+        <img src="{{imgSrc}}" alt="{{name}}">
+      </div>
+    {{/each}}
+  </div>
+  <div class="hud-controls">
+    <button class="orientation-toggle"></button>
+    <button class="minimize-toggle"></button>
+  </div>
 </div>

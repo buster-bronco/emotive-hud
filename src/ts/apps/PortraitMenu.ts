@@ -1,16 +1,16 @@
 export default class PortraitMenu {
-    private isVertical: boolean = true;
-    private isMinimized: boolean = false;
+  private isVertical: boolean = true;
+  private isMinimized: boolean = false;
 
-    constructor() {
-        // TODO: Initialize menu state
-    }
+  constructor() {
+    // TODO: Initialize menu state
+  }
 
-    toggleOrientation(): void {
-        this.isVertical = !this.isVertical;
-    }
+  toggleOrientation(): void {
+    this.isVertical = !this.isVertical;
+  }
 
-    toggleMinimize(): void {
-        this.isMinimized = !this.isMinimized;
-    }
+  toggleMinimize(): void {
+    this.isMinimized = !this.isMinimized;
+  }
 }
