@@ -62,7 +62,7 @@ export default class EmotiveActorSelector extends Application {
       if (data.type === "Actor" && data.uuid) {
         // Check if actor is already in the list
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
-          console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.id);
+          console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);
           this.selectedActors.push({
             ...data,
             portraitFolder: "",
