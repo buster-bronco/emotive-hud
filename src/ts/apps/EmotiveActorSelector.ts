@@ -9,17 +9,17 @@ export default class EmotiveActorSelector extends Application {
 
     this._dragDrop = [
       new DragDrop({
-          dragSelector: ".actor-item",
-          dropSelector: ".drag-area",
-          permissions: {
-              // create arrow functions that match the expected signature
-              dragstart: (selector: string | undefined) => this._canDragStart(selector),
-              drop: (selector: string | undefined) => this._canDragDrop(selector)
-          },
-          callbacks: {
-              dragstart: this._onDragStart.bind(this),
-              drop: this._onDragDrop.bind(this)
-          }
+        dragSelector: ".actor-item",
+        dropSelector: ".drag-area",
+        permissions: {
+          // create arrow functions that match the expected signature
+          dragstart: (selector: string | undefined) => this._canDragStart(selector),
+          drop: (selector: string | undefined) => this._canDragDrop(selector)
+        },
+        callbacks: {
+          dragstart: this._onDragStart.bind(this),
+          drop: this._onDragDrop.bind(this)
+        }
       })
     ];
   }
@@ -37,35 +37,47 @@ export default class EmotiveActorSelector extends Application {
     }
 
     protected override _onDragStart(event: DragEvent): void {
-        if (!event.dataTransfer) return;
-        
-        const target = event.currentTarget as HTMLElement;
-        const actorId = target.dataset.actorId;
-        
-        console.log("Actor selected for drag:", actorId);
-        
-        event.dataTransfer.setData("text/plain", JSON.stringify({
-            type: "Actor",
-            id: actorId
-        }));
+      if (!event.dataTransfer) return;
+      
+      const target = event.currentTarget as HTMLElement;
+      const actorId = target.dataset.actorId;
+      
+      console.log("Actor selected for drag:", actorId);
+      
+      event.dataTransfer.setData("text/plain", JSON.stringify({
+        type: "Actor",
+        id: actorId
+      }));
     }
 
-    protected _onDragDrop(event: DragEvent): void {
-        if (!event.dataTransfer) return;
-        
-        try {
-            const data = JSON.parse(event.dataTransfer.getData("text/plain"));
-            console.log("Actor dropped:", data);
-            
-            if (data.type === "Actor" && data.id) {
-                console.log("Processing actor drop with ID:", data.id);
-
-                this.render(false); // Re-render to update the list
-            }
-        } catch (err) {
-            console.error("Error processing drop:", err);
+  protected _onDragDrop(event: DragEvent): void {
+    if (!event.dataTransfer) return;
+    
+    try {
+      const data = JSON.parse(event.dataTransfer.getData("text/plain"));
+      console.log("Actor dropped:", data);
+      
+      if (data.type === "Actor" && data.uuid) {
+        // Check if actor is already in the list
+        if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
+          console.log("Processing actor drop with ID:", data.id);
+          this.selectedActors.push(data);
+          console.log("Selected Actors List:", this.selectedActors);
+          this.render(false); // Re-render to update the list
         }
-    }
+      }
+      } catch (err) {
+          console.error("Error processing drop:", err);
+      }
+  }
+
+  // Add a method to remove actors
+  private _onRemoveActor(event: JQuery.ClickEvent): void {
+    event.preventDefault();
+    const uuid = $(event.currentTarget).data('uuid');
+    this.selectedActors = this.selectedActors.filter(actor => actor.uuid !== uuid);
+    this.render(false);
+  }
 
   override get title(): string {
     return (game as Game).i18n.localize("EMOTIVEHUD.emotive-actor-selector");
@@ -88,11 +100,13 @@ export default class EmotiveActorSelector extends Application {
 
   override activateListeners(html: JQuery<HTMLElement>): void {
     super.activateListeners(html);
-    html
-      .find(".refresh-button")
+    
+    html.find(".refresh-button")
       .on("click", this._onClickRefreshButton.bind(this));
+        
+    html.find(".remove-actor")
+      .on("click", this._onRemoveActor.bind(this));
 
-    // Bind the drag drop handlers
     this._dragDrop.forEach(dd => dd.bind(html[0]));
   }
 

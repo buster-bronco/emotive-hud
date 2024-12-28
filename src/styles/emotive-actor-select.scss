@@ -1,68 +1,96 @@
 .expressive-actor-select {
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 5px;
+  width: 100%; // Ensure the container takes up the full width
+  height: 100%; // Ensure the container takes up the full height
+
+  h2 {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .drag-area {
+    background-color: #e0e0e0;
+    border: 1px dashed #ccc;
     padding: 10px;
-    border-radius: 5px;
-    width: 100%; // Ensure the container takes up the full width
-    height: 100%; // Ensure the container takes up the full height
-  
-    h2 {
-      font-size: 1.2em;
-      margin-bottom: 10px;
+    text-align: center;
+    cursor: pointer;
+    flex: 1;
+
+    &:hover {
+      background-color: #d0d0d0;
     }
-  
-    .content {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
+  }
+
+  .refresh-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin: 5px 0;
+
+    &:hover {
+      background-color: #45a049;
     }
-  
-    .drag-area {
-      background-color: #e0e0e0;
-      border: 1px dashed #ccc;
-      padding: 10px;
-      text-align: center;
+  }
+
+  .actor-list {
+    list-style-type: none;
+    padding: 0;
+    flex: 1; 
+    overflow-y: auto;
+
+    .actor-item {
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
       cursor: pointer;
-      flex: 1; // Takes up half of the height
-  
-      &:hover {
-        background-color: #d0d0d0;
+
+      &:last-child {
+        border-bottom: none;
       }
-    }
-  
-    .refresh-button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      margin: 5px 0;
-  
+
       &:hover {
-        background-color: #45a049;
-      }
-    }
-  
-    .actor-list {
-      list-style-type: none;
-      padding: 0;
-      flex: 1; // Takes up the other half of the height
-      overflow-y: auto; // Allows scrolling if there are many actors
-  
-      .actor-item {
-        padding: 5px;
-        border-bottom: 1px solid #ddd;
-        cursor: pointer;
-  
-        &:last-child {
-          border-bottom: none;
-        }
-  
-        &:hover {
-          background-color: #e0e0e0;
-        }
+        background-color: #e0e0e0;
       }
     }
   }
-  
+
+  .selected-actors-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .selected-actor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    margin: 4px 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+
+  .remove-actor {
+    background: none;
+    border: none;
+    color: #ff4444;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 0 8px;
+  }
+
+  .remove-actor:hover {
+    color: #ff0000;
+  }
+}
