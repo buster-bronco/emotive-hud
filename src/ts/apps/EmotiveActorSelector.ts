@@ -31,13 +31,11 @@ export default class EmotiveActorSelector extends Application {
 
   protected override _canDragStart(selector: string | undefined): boolean {
     if (!selector) return false;
-    console.log(CONSTANTS.DEBUG_PREFIX, "Checking if can drag start for selector:", selector);
     return true;
   }
   
   protected override _canDragDrop(selector: string | undefined): boolean {
     if (!selector) return false;
-    console.log(CONSTANTS.DEBUG_PREFIX, "Checking if can drop for selector:", selector);
     return true;
   }
 
