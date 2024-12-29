@@ -1,13 +1,20 @@
-<div class="emotive-hud {{#if isVertical}}vertical{{else}}horizontal{{/if}} {{#if isMinimized}}minimized{{/if}}">
-  <div class="portrait-container">
+<div class="emotive-hud">
+  <div class="hud-controls">
+    <button class="control-button scale-toggle">
+      <i class="fas fa-bars"></i>
+    </button>
+    <button class="control-button slider">
+      <i class="fas fa-grip-lines"></i>
+    </button>
+    <button class="control-button minimize">
+      <i class="fas fa-chevron-down"></i>
+    </button>
+  </div>
+    <div class="portrait-container">
     {{#each portraits}}
       <div class="portrait" data-actor-id="{{actorId}}">
         <img src="{{imgSrc}}" alt="{{name}}">
       </div>
     {{/each}}
-  </div>
-  <div class="hud-controls">
-    <button class="orientation-toggle"></button>
-    <button class="minimize-toggle"></button>
   </div>
 </div>
