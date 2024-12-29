@@ -94,25 +94,14 @@ export default class EmotiveActorSelector extends Application {
     fp.browse("");
   }
 
-  private async _onSelectPortraitPath(event: JQuery.ClickEvent): Promise<void> {
+  private async _onClickActorPortrait(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     const uuid = $(event.currentTarget).data('uuid');
-    const actor = this.selectedActors.find(a => a.uuid === uuid);
+    const actor = await fromUuid(uuid) as Actor;
     if (!actor) return;
 
-    const fp = new FilePicker({
-      type: "image",
-      callback: async (path: string) => {
-        // Extract folder path from the selected file
-        const folderPath = path.substring(0, path.lastIndexOf('/'));
-        actor.portraitFolder = folderPath;
-        actor.portraitPath = folderPath + "/*";
-        this.render(false);
-      },
-      current: actor.portraitPath?.replace("/*", "") || undefined
-    });
-    fp.browse("");
-  }
+    actor.sheet?.render(true);
+}
 
   private _onRemoveActor(event: JQuery.ClickEvent): void {
     event.preventDefault();
@@ -168,7 +157,7 @@ export default class EmotiveActorSelector extends Application {
       .on("click", this._onSelectPortraitFolder.bind(this));
       
     html.find(".actor-portrait.clickable")
-      .on("click", this._onSelectPortraitPath.bind(this));
+      .on("click", this._onClickActorPortrait.bind(this));
 
     this._dragDrop.forEach(dd => dd.bind(html[0]));
   }
