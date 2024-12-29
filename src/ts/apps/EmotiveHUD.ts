@@ -1,5 +1,6 @@
 import { EmotiveHUDData } from "../types";
 import { getVisibleActors } from "../settings";
+import { getModule } from "../module";
 
 export default class EmotiveHUD extends Application {
   static override get defaultOptions() {
@@ -46,6 +47,8 @@ export default class EmotiveHUD extends Application {
   override activateListeners(html: JQuery) {
     super.activateListeners(html);
     
+    html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
+    
     // Watch for sidebar collapse/expand using DOM mutation observer
     const sidebar = document.getElementById('sidebar');
     if (sidebar) {
@@ -61,6 +64,15 @@ export default class EmotiveHUD extends Application {
         attributes: true,
         attributeFilter: ['class']
       });
+    }
+  }
+
+  private _onOpenSelector(event: JQuery.ClickEvent): void {
+    event.preventDefault();
+    const gameInstance = game as Game;
+    const module = gameInstance.modules.get('emotive-hud');
+    if (module) {
+      getModule().emotiveActorSelector.render(true);
     }
   }
 }

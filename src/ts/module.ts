@@ -22,13 +22,9 @@ Hooks.once("ready", () => {
   module.emotiveHUD.render(true);
 });
 
-
-Hooks.on("renderActorDirectory", (_: Application, html: JQuery) => {
-  const button = $(
-    `<button class="cc-sidebar-button" type="button">🐶</button>`
-  );
-  button.on("click", () => {
-    module.emotiveActorSelector.render(true);
-  });
-  html.find(".directory-header .action-buttons").append(button);
-});
+export function getModule(): MyModule {
+  if (!module) {
+    throw new Error('Module not initialized');
+  }
+  return module;
+}
