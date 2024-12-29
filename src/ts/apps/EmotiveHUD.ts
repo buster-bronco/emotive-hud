@@ -89,6 +89,8 @@ export default class EmotiveHUD extends Application {
     };
   }
 
+  // TODO:  This function needs to renormalize because Foundry UUIDs for actors are prefixed with `Actor.` 
+  //        We need to look if this current implementation is ideal or if it's better to just renormalize early in the HUDState itself 
   private getActorsToShow(): Actor[] {
     const gameInstance = game as Game;
     const hudState: HUDState = getHUDState();
