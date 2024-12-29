@@ -1,6 +1,5 @@
-import { EmotiveHUDData } from "../types";
+import { EmotiveHUDData, MyModule } from "../types";
 import { getVisibleActors } from "../settings";
-import { getModule } from "../module";
 import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
@@ -10,6 +9,10 @@ export default class EmotiveHUD extends Application {
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-hud.hbs`,
       popOut: false,
     }) as ApplicationOptions;
+  }
+
+  private get module(): MyModule {
+    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
   }
 
   override getData(): EmotiveHUDData {
@@ -48,12 +51,10 @@ export default class EmotiveHUD extends Application {
   override activateListeners(html: JQuery) {
     super.activateListeners(html);
     
-    // Debug logging
     console.log(CONSTANTS.DEBUG_PREFIX, "Activating HUD listeners");
     
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     
-    // Make sure we're using the correct selector and event binding
     const portraits = html.find('.portrait');
     console.log(CONSTANTS.DEBUG_PREFIX, `Found ${portraits.length} portraits`);
     
@@ -74,7 +75,6 @@ export default class EmotiveHUD extends Application {
       return;
     }
 
-    // Check if user owns this actor
     const actor = await fromUuid(actorId) as Actor;
     if (!actor?.isOwner) {
       console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
@@ -83,11 +83,11 @@ export default class EmotiveHUD extends Application {
     console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
 
     console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
-    getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
+    this.module.emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
     event.preventDefault();
-    getModule().emotiveActorSelector.render(true);
+    this.module.emotiveActorSelector.render(true);
   }
 }

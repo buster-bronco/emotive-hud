@@ -25,10 +25,3 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   module.emotiveHUD.render(true);
 });
-
-export function getModule(): MyModule {
-  if (!module) {
-    throw new Error('Module not initialized');
-  }
-  return module;
-}
