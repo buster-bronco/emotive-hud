@@ -1,12 +1,13 @@
 import { EmotiveHUDData } from "../types";
 import { getVisibleActors } from "../settings";
 import { getModule } from "../module";
+import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
   static override get defaultOptions() {
     return mergeObject(super.defaultOptions, {
       id: "emotive-hud",
-      template: "modules/emotive-hud/templates/emotive-hud.hbs",
+      template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-hud.hbs`,
       popOut: false,
     }) as ApplicationOptions;
   }
@@ -47,32 +48,46 @@ export default class EmotiveHUD extends Application {
   override activateListeners(html: JQuery) {
     super.activateListeners(html);
     
+    // Debug logging
+    console.log(CONSTANTS.DEBUG_PREFIX, "Activating HUD listeners");
+    
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     
-    // Watch for sidebar collapse/expand using DOM mutation observer
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.attributeName === 'class') {
-            this.setPosition();
-          }
-        });
-      });
-      
-      observer.observe(sidebar, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
+    // Make sure we're using the correct selector and event binding
+    const portraits = html.find('.portrait');
+    console.log(CONSTANTS.DEBUG_PREFIX, `Found ${portraits.length} portraits`);
+    
+    portraits.on('dblclick', this._onPortraitDoubleClick.bind(this));
+  }
+
+  private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
+    console.log(CONSTANTS.DEBUG_PREFIX, "Portrait double-clicked");
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const portraitElement = event.currentTarget as HTMLElement;
+    const actorId = portraitElement.dataset.actorId;
+    
+    if (!actorId) {
+      console.log(CONSTANTS.DEBUG_PREFIX, "No actor ID found");
+      return;
     }
+
+    // Check if user owns this actor
+    const actor = await fromUuid(actorId) as Actor;
+    if (!actor?.isOwner) {
+      console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
+      return;
+    }
+    console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
+
+    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
+    getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
     event.preventDefault();
-    const gameInstance = game as Game;
-    const module = gameInstance.modules.get('emotive-hud');
-    if (module) {
-      getModule().emotiveActorSelector.render(true);
-    }
+    getModule().emotiveActorSelector.render(true);
   }
 }
