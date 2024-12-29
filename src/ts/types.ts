@@ -3,7 +3,7 @@ import EmotiveHUD from "./apps/EmotiveHUD";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 
-export interface MyModule extends Game.ModuleData<ModuleData> {
+export interface EmotiveHudModule extends Game.ModuleData<ModuleData> {
   emotiveActorSelector: EmotiveActorSelector; 
   emotiveHUD: EmotiveHUD; 
   emotivePortraitPicker: EmotivePortraitPicker; 

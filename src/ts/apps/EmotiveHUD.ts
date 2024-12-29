@@ -1,4 +1,4 @@
-import { EmotiveHUDData, MyModule } from "../types";
+import { EmotiveHUDData, EmotiveHudModule } from "../types";
 import { getVisibleActors } from "../settings";
 import CONSTANTS from "../constants";
 
@@ -10,8 +10,8 @@ export default class EmotiveHUD extends Application {
     this.initializeSidebarObserver();
   }
 
-  private get module(): MyModule {
-    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
+  private get module(): EmotiveHudModule {
+    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
   }
 
   static override get defaultOptions(): ApplicationOptions {
