@@ -6,7 +6,14 @@
     gap: 4px;
     pointer-events: all;
     bottom: 10px;
-    right: 320px; // Approximate default width of the sidebar
+    
+    // Default positioning (expanded sidebar)
+    right: 320px; 
+    
+    // When sidebar is collapsed, adjust position
+    .sidebar-collapsed & {
+      right: 32px; // Approximate width of collapsed sidebar
+    }
     
     .portrait-container {
       display: flex;
@@ -40,6 +47,7 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
+      justify-content: flex-end;
       
       .control-button {
         width: 24px;
@@ -59,41 +67,9 @@
           color: var(--color-text-highlight);
         }
         
-        &.slider {
-          cursor: grab;
-          position: relative;
-          background: rgba(40, 0, 0, 0.8);
-          
-          &::before {
-            content: '';
-            position: absolute;
-            left: 6px;
-            right: 6px;
-            height: 2px;
-            top: 8px;
-            background: var(--color-text-light-highlight);
-            border-radius: 1px;
-          }
-          
-          &::after {
-            content: '';
-            position: absolute;
-            left: 6px;
-            right: 6px;
-            height: 2px;
-            bottom: 8px;
-            background: var(--color-text-light-highlight);
-            border-radius: 1px;
-          }
-          
-          &:active {
-            cursor: grabbing;
-          }
-        }
-        
         i {
           font-size: 12px;
         }
       }
     }
-  }
+}
