@@ -1,23 +1,21 @@
 import { CONSTANTS } from "../constants";
-
-interface ActorWithFolder extends Actor {
-  portraitFolder?: string;
-  portraitPath?: string;
-}
+import { getActorConfigs, setActorConfig, getHUDState, setHUDState, type ActorConfig } from "../settings";
 
 export default class EmotiveActorSelector extends Application {
-  private selectedActors: ActorWithFolder[] = [];
+  private selectedActors: ActorConfig[] = [];
   protected override _dragDrop: DragDrop[] = [];
   
   constructor(options = {}) {
     super(options);
+
+    // load up settings data
+    this._loadFromSettings();
 
     this._dragDrop = [
       new DragDrop({
         dragSelector: ".actor-item",
         dropSelector: ".drag-area",
         permissions: {
-          // create arrow functions that match the expected signature
           dragstart: (selector: string | undefined) => this._canDragStart(selector),
           drop: (selector: string | undefined) => this._canDragDrop(selector)
         },
@@ -27,6 +25,46 @@ export default class EmotiveActorSelector extends Application {
         }
       })
     ];
+  }
+
+  private async _loadFromSettings(): Promise<void> {
+    const hudState = getHUDState();
+    const configs = getActorConfigs();
+    
+    // Load actors in their correct order from HUD state
+    this.selectedActors = hudState.actors
+      .sort((a, b) => a.position - b.position)
+      .map(({uuid}) => {
+        const config = configs[uuid];
+        return {
+          uuid,
+          portraitFolder: config?.portraitFolder || "",
+          portraitPath: config?.portraitPath || ""
+        };
+      });
+
+      console.log(CONSTANTS.MODULE_ID, " hudState: ", hudState)
+      console.log(CONSTANTS.MODULE_ID, " configs: ", configs)
+  }
+
+  private async _updateSettings(): Promise<void> {
+    // Update actor configs
+    for (const actor of this.selectedActors) {
+      await setActorConfig(actor.uuid, {
+        uuid: actor.uuid,
+        portraitFolder: actor.portraitFolder,
+        portraitPath: actor.portraitPath
+      });
+    }
+
+    // Update HUD state with current actors and their positions
+    const hudState = {
+      actors: this.selectedActors.map((actor, index) => ({
+        uuid: actor.uuid,
+        position: index
+      }))
+    };
+    await setHUDState(hudState);
   }
 
   protected override _canDragStart(selector: string | undefined): boolean {
@@ -64,15 +102,16 @@ export default class EmotiveActorSelector extends Application {
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
           console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);
           this.selectedActors.push({
-            ...data,
+            uuid: data.uuid,
             portraitFolder: "",
             portraitPath: ""
           });
+          this._updateSettings();
           this.render(false);
         }
       }
     } catch (err) {
-      console.error("Error processing drop:", err);
+      console.error(CONSTANTS.DEBUG_PREFIX, "Error processing drop:", err);
     }
   }
 
@@ -87,6 +126,7 @@ export default class EmotiveActorSelector extends Application {
       callback: async (path: string) => {
         actor.portraitFolder = path;
         actor.portraitPath = path + "/*";
+        await this._updateSettings();
         this.render(false);
       },
       current: actor.portraitFolder || undefined
@@ -101,12 +141,13 @@ export default class EmotiveActorSelector extends Application {
     if (!actor) return;
 
     actor.sheet?.render(true);
-}
+  }
 
-  private _onRemoveActor(event: JQuery.ClickEvent): void {
+  private async _onRemoveActor(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     const uuid = $(event.currentTarget).data('uuid');
     this.selectedActors = this.selectedActors.filter(actor => actor.uuid !== uuid);
+    await this._updateSettings();
     this.render(false);
   }
 

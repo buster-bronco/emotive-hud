@@ -9,6 +9,8 @@ import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 let module: MyModule;
 
 Hooks.once("init", () => {
+  registerSettings();
+
   console.log(`Initializing ${CONSTANTS.MODULE_ID}`);
 
   module = (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
@@ -26,11 +28,6 @@ Hooks.on("renderActorDirectory", (_: Application, html: JQuery) => {
     module.dogBrowser.render(true);
   });
   html.find(".directory-header .action-buttons").append(button);
-});
-
-// When initializing the module
-Hooks.once('init', () => {
-  registerSettings();
 });
 
 // EmotiveHUD hook
