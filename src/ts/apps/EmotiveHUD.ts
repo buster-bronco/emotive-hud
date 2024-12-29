@@ -1,5 +1,5 @@
 import { EmotiveHUDData, EmotiveHudModule } from "../types";
-import { getVisibleActors } from "../settings";
+import { getIsMinimized, setIsMinimized } from "../settings";
 import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
@@ -8,6 +8,9 @@ export default class EmotiveHUD extends Application {
   constructor(options = {}) {
     super(options);
     this.initializeSidebarObserver();
+    
+    // Listen for minimized state changes from settings
+    Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
   }
 
   private get module(): EmotiveHudModule {
@@ -70,18 +73,25 @@ export default class EmotiveHUD extends Application {
   }
 
   override getData(): EmotiveHUDData {
-    const actors = getVisibleActors().slice(0, 3);
-    const gameInstance = game as Game;
+    const actors = this.getActorsToShow();
+    
+    // Log the current minimized state for debugging
+    const isMinimized = getIsMinimized();
     
     return {
-      isMinimized: false,
+      isMinimized,
       isVertical: false,
       portraits: actors.map(actor => ({
-        actorId: actor.uuid,
-        imgSrc: gameInstance.actors?.get(actor.uuid)?.img || "",
-        name: gameInstance.actors?.get(actor.uuid)?.name || "",
+        actorId: actor.id ?? "",
+        imgSrc: actor.img ?? "",
+        name: actor.name ?? "",
       }))
     };
+  }
+
+  private getActorsToShow(): Actor[] {
+    const gameInstance = game as Game;
+    return Array.from(gameInstance.actors?.values() ?? []).slice(0, 3);
   }
 
   override activateListeners(html: JQuery): void {
@@ -90,6 +100,7 @@ export default class EmotiveHUD extends Application {
     console.log(CONSTANTS.DEBUG_PREFIX, "Activating HUD listeners");
     
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
+    html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
     
     const portraits = html.find('.portrait');
     console.log(CONSTANTS.DEBUG_PREFIX, `Found ${portraits.length} portraits`);
@@ -111,7 +122,8 @@ export default class EmotiveHUD extends Application {
       return;
     }
 
-    const actor = await fromUuid(actorId) as Actor;
+    const gameInstance = game as Game;
+    const actor = gameInstance.actors?.get(actorId);
     if (!actor?.isOwner) {
       console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
       return;
@@ -125,5 +137,13 @@ export default class EmotiveHUD extends Application {
   private _onOpenSelector(event: JQuery.ClickEvent): void {
     event.preventDefault();
     this.module.emotiveActorSelector.render(true);
+  }
+
+  private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    const currentState = getIsMinimized();
+    console.log(`${CONSTANTS.DEBUG_PREFIX} Toggling visibility from`, currentState);
+    await setIsMinimized(!currentState);
+    this.render();  // Force a re-render after setting the new state
   }
 }

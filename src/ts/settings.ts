@@ -24,7 +24,6 @@ export const registerSettings = function() {
     type: Object,
     default: {} as Record<string, ActorConfig>,
     onChange: value => {
-      // Trigger any necessary updates when configurations change
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.configsChanged`, value);
     }
   });
@@ -37,8 +36,19 @@ export const registerSettings = function() {
     type: Object,
     default: { actors: [] } as HUDState,
     onChange: value => {
-      // Trigger any necessary updates when HUD state changes
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.hudStateChanged`, value);
+    }
+  });
+
+  // Store minimized state for each client
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'isMinimized', {
+    name: 'Emotive HUD Minimized State',
+    scope: 'client',
+    config: false,
+    type: Boolean,
+    default: false,
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, value);
     }
   });
 };
@@ -62,13 +72,16 @@ export const setHUDState = async (state: HUDState): Promise<void> => {
   await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'hudState', state);
 };
 
-// Helper to get currently visible actors in their correct order
-export const getVisibleActors = (): ActorConfig[] => {
-  const configs = getActorConfigs();
-  const state = getHUDState();
-  
-  return state.actors
-    .sort((a, b) => a.position - b.position)
-    .map(({uuid}) => configs[uuid])
-    .filter(config => config !== undefined);
+export const getIsMinimized = (): boolean => {
+  const gameInstance = game as Game;
+  const value = gameInstance.settings.get(CONSTANTS.MODULE_ID, 'isMinimized');
+  console.log(`${CONSTANTS.DEBUG_PREFIX} Getting minimized state:`, value);
+  return value as boolean;
+};
+
+export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
+  const gameInstance = game as Game;
+  console.log(`${CONSTANTS.DEBUG_PREFIX} Setting minimized state to:`, isMinimized);
+  await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
+  console.log(`${CONSTANTS.DEBUG_PREFIX} State set complete`);
 };
