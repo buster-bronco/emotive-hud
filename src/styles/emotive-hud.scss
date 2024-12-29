@@ -6,6 +6,7 @@
     gap: 4px;
     pointer-events: all;
     bottom: 10px;
+    transition: right 0.1s ease;
     
     // Default positioning (expanded sidebar)
     right: 320px; 

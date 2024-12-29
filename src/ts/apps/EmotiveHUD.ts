@@ -3,7 +3,18 @@ import { getVisibleActors } from "../settings";
 import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
-  static override get defaultOptions() {
+  private sidebarObserver: MutationObserver | null = null;
+
+  constructor(options = {}) {
+    super(options);
+    this.initializeSidebarObserver();
+  }
+
+  private get module(): MyModule {
+    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
+  }
+
+  static override get defaultOptions(): ApplicationOptions {
     return mergeObject(super.defaultOptions, {
       id: "emotive-hud",
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-hud.hbs`,
@@ -11,8 +22,51 @@ export default class EmotiveHUD extends Application {
     }) as ApplicationOptions;
   }
 
-  private get module(): MyModule {
-    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as MyModule;
+  private initializeSidebarObserver(): void {
+    // Create observer to watch sidebar for collapse/expand
+    this.sidebarObserver = new MutationObserver(() => {
+      this.setPosition();
+    });
+  }
+
+  override async close(options?: Application.CloseOptions): Promise<void> {
+    // Clean up observer when app closes
+    if (this.sidebarObserver) {
+      this.sidebarObserver.disconnect();
+      this.sidebarObserver = null;
+    }
+    return super.close(options);
+  }
+
+  override render(force?: boolean, options?: Application.RenderOptions): this {
+    super.render(force, options);
+    
+    // Start observing sidebar after render
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && this.sidebarObserver) {
+      this.sidebarObserver.observe(sidebar, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+    
+    return this;
+  }
+
+  override setPosition(): void {
+    if (!this.element) return;
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    // Calculate position based on sidebar state
+    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
+    const offset = isSidebarCollapsed ? 42 : 330; // 32/320 + 10px margin
+    
+    this.element.css({
+      right: `${offset}px`,
+      bottom: '10px'
+    });
   }
 
   override getData(): EmotiveHUDData {
@@ -30,25 +84,7 @@ export default class EmotiveHUD extends Application {
     };
   }
 
-  override setPosition() {
-    if (!this.element) return;
-
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar) return;
-
-    const sidebarRect = sidebar.getBoundingClientRect();
-    
-    // Check if sidebar has the collapsed class
-    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
-    const sidebarWidth = isSidebarCollapsed ? 32 : 320;
-    
-    this.element.css({
-      right: (window.innerWidth - sidebarRect.left + 10) + 'px',
-      bottom: '10px'
-    });
-  }
-
-  override activateListeners(html: JQuery) {
+  override activateListeners(html: JQuery): void {
     super.activateListeners(html);
     
     console.log(CONSTANTS.DEBUG_PREFIX, "Activating HUD listeners");
