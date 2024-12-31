@@ -5,6 +5,7 @@ export interface ActorConfig {
   portraitFolder?: string;
   portraitPath?: string;
   currentPortrait?: string;
+  cachedPortraits?: string[]; 
 }
 
 export interface HUDState {
@@ -97,4 +98,40 @@ export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
   console.log(`${CONSTANTS.DEBUG_PREFIX} Setting minimized state to:`, isMinimized);
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
   console.log(`${CONSTANTS.DEBUG_PREFIX} State set complete`);
+};
+
+export const cacheActorPortraits = async (uuid: string, folderPath: string): Promise<void> => {
+  const configs = getActorConfigs();
+  if (!configs[uuid]) return;
+
+  try {
+    // Only GM can browse files
+    if (!(game as Game).user?.isGM) return;
+    
+    const browser = await FilePicker.browse("data", folderPath);
+    const portraits = browser.files.filter(file => 
+      file.toLowerCase().endsWith('.jpg') || 
+      file.toLowerCase().endsWith('.jpeg') || 
+      file.toLowerCase().endsWith('.png') || 
+      file.toLowerCase().endsWith('.webp')
+    );
+
+    configs[uuid] = {
+      ...configs[uuid],
+      portraitFolder: folderPath,
+      portraitPath: folderPath,
+      cachedPortraits: portraits
+    };
+
+    await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  } catch (error) {
+    console.error(CONSTANTS.DEBUG_PREFIX, 'Error caching portraits:', error);
+    throw error;
+  }
+};
+
+// Get cached portraits for an actor
+export const getActorPortraits = (uuid: string): string[] => {
+  const configs = getActorConfigs();
+  return configs[uuid]?.cachedPortraits ?? [];
 };

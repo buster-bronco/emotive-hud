@@ -1,5 +1,6 @@
 import { CONSTANTS } from "../constants";
 import { getActorConfigs, setActorConfig, getHUDState, setHUDState, type ActorConfig } from "../settings";
+import { cacheActorPortraits } from "../settings";
 
 export default class EmotiveActorSelector extends Application {
   private selectedActors: ActorConfig[] = [];
@@ -120,14 +121,18 @@ export default class EmotiveActorSelector extends Application {
     const uuid = $(event.currentTarget).data('uuid');
     const actor = this.selectedActors.find(a => a.uuid === uuid);
     if (!actor) return;
-
+  
     const fp = new FilePicker({
       type: "folder",
       callback: async (path: string) => {
-        actor.portraitFolder = path;
-        actor.portraitPath = path + "/*";
-        await this._updateSettings();
-        this.render(false);
+        try {
+          // Cache portraits when folder is selected
+          await cacheActorPortraits(uuid, path);
+          this.render(false);
+        } catch (error) {
+          console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
+          ui.notifications?.error("Failed to set portrait folder");
+        }
       },
       current: actor.portraitFolder || undefined
     });

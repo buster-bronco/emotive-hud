@@ -1,5 +1,5 @@
 import CONSTANTS from "../constants";
-import { getActorConfigs, updateActorPortrait } from "../settings";
+import { getActorPortraits, updateActorPortrait } from "../settings";
 import { EmotiveHudModule } from "../types";
 
 export default class EmotivePortraitPicker extends Application {
@@ -27,38 +27,19 @@ export default class EmotivePortraitPicker extends Application {
   async showForActor(actorId: string, anchor: HTMLElement): Promise<void> {
     console.log(CONSTANTS.DEBUG_PREFIX, "Showing picker for actor:", actorId);
     
-    // Get the actor's configured portrait folder
-    const configs = getActorConfigs();
-    const actorConfig = configs[`Actor.${actorId}`];
+    const actorUuid = `Actor.${actorId}`;
     
-    if (!actorConfig?.portraitFolder) {
-      ui.notifications?.warn("No portrait folder configured for this actor");
+    // Get cached portraits
+    this._portraits = getActorPortraits(actorUuid);
+    
+    if (this._portraits.length === 0) {
+      ui.notifications?.warn("No portraits available for this actor");
       return;
     }
 
-    // Check if folder exists and get its contents
-    try {
-      const browser = await FilePicker.browse("data", actorConfig.portraitFolder);
-      this._portraits = browser.files.filter(file => 
-        file.toLowerCase().endsWith('.jpg') || 
-        file.toLowerCase().endsWith('.jpeg') || 
-        file.toLowerCase().endsWith('.png') || 
-        file.toLowerCase().endsWith('.webp')
-      );
-
-      if (this._portraits.length === 0) {
-        ui.notifications?.warn("No valid images found in the configured folder");
-        return;
-      }
-
-      this._actorId = actorId;
-      this._anchor = anchor;
-      this.render(true);
-    } catch (error) {
-      console.error(CONSTANTS.DEBUG_PREFIX, "Error accessing portrait folder:", error);
-      ui.notifications?.warn("Could not access the configured portrait folder");
-      return;
-    }
+    this._actorId = actorId;
+    this._anchor = anchor;
+    this.render(true);
   }
 
   override async getData() {
