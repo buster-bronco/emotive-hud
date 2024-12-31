@@ -1,5 +1,6 @@
 import CONSTANTS from "../constants";
-import { getActorConfigs } from "../settings";
+import { getActorConfigs, updateActorPortrait } from "../settings";
+import { EmotiveHudModule } from "../types";
 
 export default class EmotivePortraitPicker extends Application {
   private _actorId: string | null = null;
@@ -90,6 +91,7 @@ export default class EmotivePortraitPicker extends Application {
   override activateListeners(html: JQuery<HTMLElement>): void {
     super.activateListeners(html);
     html.find('.emotion-item').on('click', this._onSelectEmotion.bind(this));
+    html.find('.reset-portrait').on('click', this._onResetPortrait.bind(this));
   }
 
   private async _onSelectEmotion(event: JQuery.ClickEvent): Promise<void> {
@@ -103,19 +105,45 @@ export default class EmotivePortraitPicker extends Application {
 
     console.log(CONSTANTS.DEBUG_PREFIX, 'Selected portrait:', portraitPath);
 
-    // Get the actor and update their image
-    const actor = (game as Game)?.actors?.get(this._actorId);
-    if (!actor?.isOwner) {
-      console.error(CONSTANTS.DEBUG_PREFIX, 'No permission to update actor');
+    const actorUuid = `Actor.${this._actorId}`;
+    try {
+      // Update the portrait in our settings
+      await updateActorPortrait(actorUuid, portraitPath);
+      
+      // Trigger a re-render of the HUD
+      const gameInstance = game as Game;
+      const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
+      module.emotiveHUD.render();
+      
+      this.close();
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
+      ui.notifications?.error("Failed to update portrait");
+    }
+  }
+
+  private async _onResetPortrait(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    
+    if (!this._actorId) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Missing actor ID');
       return;
     }
 
+    const actorUuid = `Actor.${this._actorId}`;
     try {
-      await actor.update({ img: portraitPath });
+      // Clear the custom portrait
+      await updateActorPortrait(actorUuid, null);
+      
+      // Trigger a re-render of the HUD
+      const gameInstance = game as Game;
+      const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
+      module.emotiveHUD.render();
+      
       this.close();
     } catch (error) {
-      console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating actor portrait:', error);
-      ui.notifications?.error("Failed to update actor portrait");
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error resetting portrait:', error);
+      ui.notifications?.error("Failed to reset portrait");
     }
   }
 

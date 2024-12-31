@@ -1,5 +1,5 @@
 import { EmotiveHUDData, EmotiveHudModule } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorConfigs } from "../settings";
 import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
@@ -74,21 +74,30 @@ export default class EmotiveHUD extends Application {
 
   override getData(): EmotiveHUDData {
     const actors = this.getActorsToShow();
-    
-    // Log the current minimized state for debugging
     const isMinimized = getIsMinimized();
     
     return {
       isMinimized,
       isVertical: false,
-      portraits: actors.map(actor => ({
-        actorId: actor.id ?? "",
-        imgSrc: actor.img ?? "",
-        name: actor.name ?? "",
-      }))
+      portraits: actors.map(actor => {
+        const imgSrc = this.getActorPortrait(actor);
+        if (!imgSrc) {
+          console.warn(`${CONSTANTS.DEBUG_PREFIX} No valid portrait found for actor ${actor.id}`);
+          return {
+            actorId: actor.id ?? "",
+            imgSrc: actor.img ?? "",  // Fallback to actor image
+            name: actor.name ?? "",
+          };
+        }
+        return {
+          actorId: actor.id ?? "",
+          imgSrc,
+          name: actor.name ?? "",
+        };
+      })
     };
   }
-
+  
   // TODO:  This function needs to renormalize because Foundry UUIDs for actors are prefixed with `Actor.` 
   //        We need to look if this current implementation is ideal or if it's better to just renormalize early in the HUDState itself 
   private getActorsToShow(): Actor[] {
@@ -163,5 +172,14 @@ export default class EmotiveHUD extends Application {
     console.log(`${CONSTANTS.DEBUG_PREFIX} Toggling visibility from`, currentState);
     await setIsMinimized(!currentState);
     this.render();  // Force a re-render after setting the new state
+  }
+
+  private getActorPortrait(actor: Actor): string {
+    // Get configs to check for custom portrait
+    const configs = getActorConfigs();
+    const config = configs[`Actor.${actor.id}`];
+    
+    // Return custom portrait if set, otherwise return default actor image
+    return config?.currentPortrait ?? actor.img ?? "";
   }
 }
