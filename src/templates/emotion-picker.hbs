@@ -1,8 +1,8 @@
 <div class="emotion-picker-menu" data-actor-id="{{actorId}}">
   <div class="emotion-grid">
-    {{#each emotions}}
+    {{#each portraits}}
     <div class="emotion-item" data-path="{{this.path}}">
-      <img src="{{this.path}}" alt="{{this.name}}">
+      <img src="{{this.path}}" alt="{{this.name}}" title="{{this.name}}">
     </div>
     {{/each}}
   </div>
