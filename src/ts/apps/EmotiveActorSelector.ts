@@ -91,10 +91,21 @@ export default class EmotiveActorSelector extends Application {
         // Check if actor is already in the list
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
           console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);
+  
+          // Retrieve the existing config for the actor
+          const configs = getActorConfigs();
+          const actorConfig = configs[data.uuid];
+  
+          // Use the portraitFolder from config if it exists, or an empty string
+          const portraitFolder = actorConfig?.portraitFolder || "";
+  
+          // Add actor to selectedActors with its existing portrait folder
           this.selectedActors.push({
             uuid: data.uuid,
-            portraitFolder: ""
+            portraitFolder: portraitFolder
           });
+  
+          // Update settings and re-render
           this._updateSettings();
           this.render(false);
         }

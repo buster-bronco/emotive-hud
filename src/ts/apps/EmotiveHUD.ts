@@ -120,8 +120,6 @@ export default class EmotiveHUD extends Application {
   override activateListeners(html: JQuery): void {
     super.activateListeners(html);
     
-    console.log(CONSTANTS.DEBUG_PREFIX, "Activating HUD listeners");
-    
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
     
