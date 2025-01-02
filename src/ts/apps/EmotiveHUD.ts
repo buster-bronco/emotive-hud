@@ -64,7 +64,7 @@ export default class EmotiveHUD extends Application {
 
     // Calculate position based on sidebar state
     const isSidebarCollapsed = sidebar.classList.contains('collapsed');
-    const offset = isSidebarCollapsed ? 42 : 330; // 32/320 + 10px margin
+    const offset = isSidebarCollapsed ? 10 : 330; // 0/320 + 10px margin
     
     this.element.css({
       right: `${offset}px`,
