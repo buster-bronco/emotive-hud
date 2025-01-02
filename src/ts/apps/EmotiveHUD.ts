@@ -103,11 +103,11 @@ export default class EmotiveHUD extends Application {
   private getActorsToShow(): Actor[] {
     const gameInstance = game as Game;
     const hudState: HUDState = getHUDState();
-    console.log("EMOTIVE-HUD: HUDState actors:", hudState.actors);
+    console.log(CONSTANTS.DEBUG_PREFIX, "HUDState actors:", hudState.actors);
   
     // Create a Map of the HUD actors, using their UUID as the key and their position as the value
     const hudActorMap = new Map(hudState.actors.map(actor => [actor.uuid, actor.position]));
-    console.log("EMOTIVE-HUD: HUD actor map:", hudActorMap);
+    console.log(CONSTANTS.DEBUG_PREFIX, "HUD actor map:", hudActorMap);
   
     // Normalize the UUIDs by removing the 'Actor.' prefix before fetching actors from gameInstance
     const actors : Actor[]  = Array.from(hudActorMap.keys())
@@ -115,7 +115,7 @@ export default class EmotiveHUD extends Application {
       .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))  // Use normalized UUIDs to fetch actors
       .filter(actor => actor) as Actor[];
   
-    console.log("EMOTIVE-HUD: Actors to show:", actors);
+    console.log(CONSTANTS.DEBUG_PREFIX, "Actors to show:", actors);
   
     return actors;
   }
