@@ -115,6 +115,7 @@ export default class EmotiveActorSelector extends Application {
       callback: async (path: string) => {
         try {
           updateActorConfig(uuid, path)
+          actor.portraitFolder = path;
           this.render(true);
         } catch (error) {
           console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
