@@ -38,11 +38,6 @@ function handlePortraitUpdate(data: PortraitUpdateData): void {
   module.emotiveHUD.handlePortraitUpdate(data);
 }
 
-function handleHudRefresh(): void {
-  const module = getModule();
-}
-
-
 /**
  * Emit a socket event to notify other clients that a portrait was updated
  * @param actorId The ID of the actor whose portrait was updated
