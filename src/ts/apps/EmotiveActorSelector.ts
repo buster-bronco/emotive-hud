@@ -1,6 +1,5 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, setActorConfig, getHUDState, setHUDState, type ActorConfig } from "../settings";
-import { cacheActorPortraits } from "../settings";
+import { getActorConfigs, getHUDState, setHUDState, updateActorConfig, type ActorConfig } from "../settings";
 import { getGame } from "../utils";
 
 export default class EmotiveActorSelector extends Application {
@@ -46,14 +45,6 @@ export default class EmotiveActorSelector extends Application {
   }
 
   private async _updateSettings(): Promise<void> {
-    // Update actor configs
-    for (const actor of this.selectedActors) {
-      await setActorConfig(actor.uuid, {
-        uuid: actor.uuid,
-        portraitFolder: actor.portraitFolder
-      });
-    }
-
     // Update HUD state with current actors and their positions
     const hudState = {
       actors: this.selectedActors.map((actor, index) => ({
@@ -123,22 +114,15 @@ export default class EmotiveActorSelector extends Application {
       type: "folder",
       callback: async (path: string) => {
         try {
-          // Update local state immediately
-          actor.portraitFolder = path;
-
-          // Then cache portraits in the background
-          await cacheActorPortraits(uuid, path);
-          
-          // Render again in case caching changed anything
-          this.render(false);
+          updateActorConfig(uuid, path)
+          this.render(true);
         } catch (error) {
           console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
           ui.notifications?.error("Failed to set portrait folder");
         }
       },
-      current: actor.portraitFolder || undefined
     });
-    fp.browse("");
+    fp.browse( actor.portraitFolder || "");
   }
 
   private async _onClickActorPortrait(event: JQuery.ClickEvent): Promise<void> {

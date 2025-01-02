@@ -59,10 +59,38 @@ export const getActorConfigs = (): Record<string, ActorConfig> => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
 
-export const setActorConfig = async (uuid: string, config: ActorConfig): Promise<void> => {
+export const updateActorConfig = async (uuid: string, folderPath: string): Promise<void> => {
   const configs = getActorConfigs();
-  configs[uuid] = config;
-  await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  if (!configs[uuid]) return;
+
+  try {
+    // Only GM can browse files
+    if (!getGame().user?.isGM) return;
+
+    // Browsing the folder to get image files
+    const browser = await FilePicker.browse("data", folderPath);
+    const portraits = browser.files.filter(file => 
+      file.toLowerCase().endsWith('.jpg') || 
+      file.toLowerCase().endsWith('.jpeg') || 
+      file.toLowerCase().endsWith('.png') || 
+      file.toLowerCase().endsWith('.webp')
+    );
+
+    // Update the actor's config: portrait folder and cached portraits
+    const updatedConfig = {
+      ...configs[uuid], // Keep existing config
+      portraitFolder: folderPath, // Update folder path
+      cachedPortraits: portraits // Cache the new portraits
+    };
+
+    configs[uuid] = updatedConfig;
+    
+    // Save the updated config back to the settings
+    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  } catch (error) {
+    console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating actor config:', error);
+    throw error;
+  }
 };
 
 export const getHUDState = (): HUDState => {
@@ -82,35 +110,6 @@ export const getIsMinimized = (): boolean => {
 export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
   const gameInstance = getGame();
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
-};
-
-export const cacheActorPortraits = async (uuid: string, folderPath: string): Promise<void> => {
-  const configs = getActorConfigs();
-  if (!configs[uuid]) return;
-
-  try {
-    // Only GM can browse files
-    if (!getGame().user?.isGM) return;
-    
-    const browser = await FilePicker.browse("data", folderPath);
-    const portraits = browser.files.filter(file => 
-      file.toLowerCase().endsWith('.jpg') || 
-      file.toLowerCase().endsWith('.jpeg') || 
-      file.toLowerCase().endsWith('.png') || 
-      file.toLowerCase().endsWith('.webp')
-    );
-
-    configs[uuid] = {
-      ...configs[uuid],
-      portraitFolder: folderPath,
-      cachedPortraits: portraits
-    };
-
-    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-  } catch (error) {
-    console.error(CONSTANTS.DEBUG_PREFIX, 'Error caching portraits:', error);
-    throw error;
-  }
 };
 
 // Get cached portraits for an actor
