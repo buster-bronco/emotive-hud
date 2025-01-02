@@ -59,13 +59,25 @@ export const getActorConfigs = (): Record<string, ActorConfig> => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
 
-export const updateActorConfig = async (uuid: string, folderPath: string): Promise<void> => {
+export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
   const configs = getActorConfigs();
   if (!configs[uuid]) return;
 
   try {
     // Only GM can browse files
-    if (!getGame().user?.isGM) return;
+    if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+
+    // If config doesn't exist, create it with just the UUID
+    if (!configs[uuid]) {
+      configs[uuid] = { uuid };
+      await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+      return;
+    }
+
+    // If folderPath is undefined or empty, keep existing config unchanged
+    if (!folderPath) {
+      return;
+    }
 
     // Browsing the folder to get image files
     const browser = await FilePicker.browse("data", folderPath);
@@ -87,6 +99,7 @@ export const updateActorConfig = async (uuid: string, folderPath: string): Promi
     
     // Save the updated config back to the settings
     await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+    console.log(CONSTANTS.DEBUG_PREFIX, ' actorConfigs updated: ', configs);
   } catch (error) {
     console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating actor config:', error);
     throw error;

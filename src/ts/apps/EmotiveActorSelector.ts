@@ -45,17 +45,6 @@ export default class EmotiveActorSelector extends Application {
       });
   }
 
-  private async _updateSettings(): Promise<void> {
-    // Update HUD state with current actors and their positions
-    const hudState = {
-      actors: this.selectedActors.map((actor, index) => ({
-        uuid: actor.uuid,
-        position: index
-      }))
-    };
-    await setHUDState(hudState);
-  }
-
   protected override _canDragStart(selector: string | undefined): boolean {
     if (!selector) return false;
     return true;
@@ -107,7 +96,6 @@ export default class EmotiveActorSelector extends Application {
           });
   
           // Update settings and re-render
-          this._updateSettings();
           this.render(false);
         }
       }
@@ -126,7 +114,6 @@ export default class EmotiveActorSelector extends Application {
       type: "folder",
       callback: async (path: string) => {
         try {
-          updateActorConfig(uuid, path)
           actor.portraitFolder = path;
           this.render(true);
         } catch (error) {
@@ -151,7 +138,6 @@ export default class EmotiveActorSelector extends Application {
     event.preventDefault();
     const uuid = $(event.currentTarget).data('uuid');
     this.selectedActors = this.selectedActors.filter(actor => actor.uuid !== uuid);
-    await this._updateSettings();
     this.render(false);
   }
 
@@ -192,7 +178,7 @@ export default class EmotiveActorSelector extends Application {
     super.activateListeners(html);
     
     html.find(".refresh-button")
-      .on("click", this._onClickRefreshButton.bind(this));
+      .on("click", this._onClickApplyButton.bind(this));
         
     html.find(".remove-actor")
       .on("click", this._onRemoveActor.bind(this));
@@ -206,12 +192,37 @@ export default class EmotiveActorSelector extends Application {
     this._dragDrop.forEach(dd => dd.bind(html[0]));
   }
 
-  private _onClickRefreshButton(event: Event): void {
+  private async _onClickApplyButton(event: Event): Promise<void> {
     event.preventDefault();
-    this.render(false);
     
-    getModule().emotiveHUD.render();
+    try {
+      // Update all actor configs in parallel
+      const configUpdatePromises = this.selectedActors
+        .map(actor => updateActorConfig(actor.uuid, actor.portraitFolder));
+      
+      // Wait for all updates to complete
+      await Promise.all(configUpdatePromises);
 
-    emitHUDRefresh();
+      // Update HUD state with current actors and their positions
+      const hudState = {
+        actors: this.selectedActors.map((actor, index) => ({
+          uuid: actor.uuid,
+          position: index
+        }))
+      };
+      
+      // Save the new state
+      await setHUDState(hudState);
+      
+      // Render the HUD with new changes
+      getModule().emotiveHUD.render();
+      
+      // Emit refresh to other clients only after all updates are complete
+      emitHUDRefresh();
+      
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error saving changes:', error);
+      ui.notifications?.error("Failed to save changes");
+    }
   }
 }
