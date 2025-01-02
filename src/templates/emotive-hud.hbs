@@ -1,30 +1,21 @@
 <div class="emotive-hud">
-    {{#if isMinimized}}
-        <div class="hud-controls">
+    <div class="hud-controls">
+        {{#if isGM}}
             <button class="control-button open-selector" title="Open Emotive HUD Actor Selector">
                 <i class="fas fa-bars"></i>
             </button>
-            <button class="control-button toggle-visibility" title="Show Emotive HUD">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-        </div>
-    {{else}}
-        <div class="portrait-container">
+        {{/if}}
+        <button class="control-button toggle-visibility" title="{{#if isMinimized}}Show{{else}}Hide{{/if}} Emotive HUD">
+            <i class="fas fa-chevron-{{#if isMinimized}}up{{else}}down{{/if}}"></i>
+        </button>
+    </div>
+    {{#unless isMinimized}}
+        <div class="portrait-container" style="--grid-columns: {{columns}}">
             {{#each portraits}}
             <div class="portrait" data-actor-id="{{actorId}}">
                 <img src="{{imgSrc}}" alt="{{name}}">
             </div>
             {{/each}}
         </div>
-        <div class="hud-controls">
-            {{#if isGM}}
-                <button class="control-button open-selector" title="Open Emotive HUD Actor Selector">
-                    <i class="fas fa-bars"></i>
-                </button>
-            {{/if}}
-            <button class="control-button toggle-visibility" title="Hide Emotive HUD">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-    {{/if}}
+    {{/unless}}
 </div>

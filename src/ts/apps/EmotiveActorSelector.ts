@@ -1,5 +1,5 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getHUDState, setHUDState, updateActorConfig, type ActorConfig } from "../settings";
+import { getActorConfigs, getActorLimit, getHUDState, setHUDState, updateActorConfig, type ActorConfig } from "../settings";
 import { emitHUDRefresh } from "../sockets";
 import { getGame, getModule } from "../utils";
 
@@ -76,8 +76,15 @@ export default class EmotiveActorSelector extends Application {
     
     try {
       const data = JSON.parse(event.dataTransfer.getData("text/plain"));
+      const actorLimit = getActorLimit();
       
       if (data.type === "Actor" && data.uuid) {
+        // Check if we've hit the actor limit
+        if (this.selectedActors.length >= actorLimit) {
+          ui.notifications?.warn(`Cannot add more actors. Maximum limit of ${actorLimit} reached.`);
+          return;
+        }
+        
         // Check if actor is already in the list
         if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
           console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);

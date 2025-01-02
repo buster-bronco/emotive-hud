@@ -52,6 +52,32 @@ export const registerSettings = function() {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, value);
     }
   });
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorLimit', {
+    name: "Actor Limit",
+    hint: "Maximum number of actors that can be displayed on the Emotive HUD. Warning: Setting this above 9 may make the HUD unwieldy.",
+    scope: "world",
+    config: true,
+    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
+    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 20, step: 1}),
+    default: 9,
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.actorLimitChanged`, value);
+    }
+  });
+
+  // New setting: Grid Columns
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'gridColumns', {
+    name: "Grid Columns",
+    hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
+    scope: "client",
+    config: true,
+    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
+    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 5, step: 1}),
+    default: 3,
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, value);
+    }
+  });
 };
 
 // Helper functions to interact with the settings
@@ -123,6 +149,14 @@ export const getIsMinimized = (): boolean => {
 export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
   const gameInstance = getGame();
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
+};
+
+export const getActorLimit = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorLimit') as number;
+};
+
+export const getGridColumns = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
 };
 
 // Get cached portraits for an actor

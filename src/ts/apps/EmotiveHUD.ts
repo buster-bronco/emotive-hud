@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorLimit, getGridColumns } from "../settings";
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
@@ -10,8 +10,11 @@ export default class EmotiveHUD extends Application {
     super(options);
     this.initializeSidebarObserver();
     
-    // Listen for minimized state changes from settings
+    // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
+    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => {
+      this.render();
+    });
   }
 
   static override get defaultOptions(): ApplicationOptions {
@@ -72,18 +75,19 @@ export default class EmotiveHUD extends Application {
   override getData(): EmotiveHUDData {
     const actors = this.getActorsToShow();
     const isMinimized = getIsMinimized();
+    const columns = getGridColumns();
     
     return {
       isGM: isCurrentUserGM(),
       isMinimized,
-      isVertical: false,
+      columns,
       portraits: actors.map(actor => {
         const imgSrc = this.getActorPortrait(actor);
         if (!imgSrc) {
           console.warn(`${CONSTANTS.DEBUG_PREFIX} No valid portrait found for actor ${actor.id}`);
           return {
             actorId: actor.id ?? "",
-            imgSrc: actor.img ?? "",  // Fallback to actor image
+            imgSrc: actor.img ?? "",
             name: actor.name ?? "",
           };
         }
@@ -100,19 +104,20 @@ export default class EmotiveHUD extends Application {
   private getActorsToShow(): Actor[] {
     const gameInstance = getGame();
     const hudState: HUDState = getHUDState();
-    console.log(CONSTANTS.DEBUG_PREFIX, "HUDState actors:", hudState.actors);
-  
+    const actorLimit = getActorLimit();
+    
     // Create a Map of the HUD actors, using their UUID as the key and their position as the value
-    const hudActorMap = new Map(hudState.actors.map(actor => [actor.uuid, actor.position]));
-    console.log(CONSTANTS.DEBUG_PREFIX, "HUD actor map:", hudActorMap);
-  
-    // Normalize the UUIDs by removing the 'Actor.' prefix before fetching actors from gameInstance
-    const actors : Actor[]  = Array.from(hudActorMap.keys())
-      .map(uuid => uuid.replace('Actor.', ''))  // Normalize UUIDs to match gameInstance format
-      .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))  // Use normalized UUIDs to fetch actors
+    const hudActorMap = new Map(
+      hudState.actors
+        .slice(0, actorLimit) // Limit the number of actors based on settings
+        .map(actor => [actor.uuid, actor.position])
+    );
+    
+    // Normalize the UUIDs and fetch actors
+    const actors = Array.from(hudActorMap.keys())
+      .map(uuid => uuid.replace('Actor.', ''))
+      .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))
       .filter(actor => actor) as Actor[];
-  
-    console.log(CONSTANTS.DEBUG_PREFIX, "Actors to show:", actors);
   
     return actors;
   }

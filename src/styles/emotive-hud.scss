@@ -1,3 +1,5 @@
+// emotive-hud.scss
+
 .emotive-hud {
     position: fixed;
     z-index: 70;
@@ -13,17 +15,19 @@
     
     // When sidebar is collapsed, adjust position
     .sidebar-collapsed & {
-      right: 32px; // Approximate width of collapsed sidebar
+      right: 32px;
     }
     
     .portrait-container {
-        display: flex;
-        flex-direction: row;
+        display: grid;
         gap: 8px;
         padding: 8px;
         background: rgba(30, 0, 0, 0.7);
         border: 1px solid var(--color-border-dark);
         border-radius: 3px;
+        
+        --grid-columns: 3;
+        grid-template-columns: repeat(var(--grid-columns), 125px);
         
         .portrait {
             width: 125px;

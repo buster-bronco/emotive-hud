@@ -11,7 +11,7 @@ export interface EmotiveHudModule extends Game.ModuleData<ModuleData> {
 
 export interface EmotiveHUDData {
   isGM: boolean,
-  isVertical: boolean;
+  columns: number;
   isMinimized: boolean;
   portraits: PortraitData[];
 }
