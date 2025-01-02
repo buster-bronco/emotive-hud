@@ -1,5 +1,5 @@
 import { EmotiveHUDData, EmotiveHudModule } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorConfigs } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
 import CONSTANTS from "../constants";
 
 export default class EmotiveHUD extends Application {
@@ -175,11 +175,7 @@ export default class EmotiveHUD extends Application {
   }
 
   private getActorPortrait(actor: Actor): string {
-    // Get configs to check for custom portrait
-    const configs = getActorConfigs();
-    const config = configs[`Actor.${actor.id}`];
-    
-    // Return custom portrait if set, otherwise return default actor image
-    return config?.currentPortrait ?? actor.img ?? "";
+    // Get portrait from flags, fall back to default actor image
+    return actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
   }
 }

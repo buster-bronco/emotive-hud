@@ -1,5 +1,5 @@
 import CONSTANTS from "../constants";
-import { getActorPortraits, updateActorPortrait } from "../settings";
+import { getActorPortraits } from "../settings";
 import { EmotiveHudModule } from "../types";
 
 export default class EmotivePortraitPicker extends Application {
@@ -86,13 +86,18 @@ export default class EmotivePortraitPicker extends Application {
 
     console.log(CONSTANTS.DEBUG_PREFIX, 'Selected portrait:', portraitPath);
 
-    const actorUuid = `Actor.${this._actorId}`;
     try {
-      // Update the portrait in our settings
-      await updateActorPortrait(actorUuid, portraitPath);
+      // Get the actor
+      const gameInstance = game as Game;
+      const actor = gameInstance.actors?.get(this._actorId);
+      if (!actor) {
+          throw new Error('Actor not found');
+      }
+
+      // Update the portrait using flags
+      await actor.setFlag(CONSTANTS.MODULE_ID, 'currentPortrait', portraitPath);
       
       // Trigger a re-render of the HUD
-      const gameInstance = game as Game;
       const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
       module.emotiveHUD.render();
       
@@ -111,13 +116,18 @@ export default class EmotivePortraitPicker extends Application {
       return;
     }
 
-    const actorUuid = `Actor.${this._actorId}`;
     try {
-      // Clear the custom portrait
-      await updateActorPortrait(actorUuid, null);
+      // Get the actor
+      const gameInstance = game as Game;
+      const actor = gameInstance.actors?.get(this._actorId);
+      if (!actor) {
+          throw new Error('Actor not found');
+      }
+
+      // Clear the portrait flag
+      await actor.unsetFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
       
       // Trigger a re-render of the HUD
-      const gameInstance = game as Game;
       const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
       module.emotiveHUD.render();
       
@@ -126,12 +136,5 @@ export default class EmotivePortraitPicker extends Application {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error resetting portrait:', error);
       ui.notifications?.error("Failed to reset portrait");
     }
-  }
-
-  override close(): Promise<void> {
-    this._actorId = null;
-    this._anchor = null;
-    this._portraits = [];
-    return super.close();
   }
 }
