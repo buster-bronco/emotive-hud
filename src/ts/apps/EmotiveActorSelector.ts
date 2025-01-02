@@ -125,7 +125,6 @@ export default class EmotiveActorSelector extends Application {
         try {
           // Update local state immediately
           actor.portraitFolder = path;
-          this.render(false);  // First render to show folder path immediately
 
           // Then cache portraits in the background
           await cacheActorPortraits(uuid, path);
