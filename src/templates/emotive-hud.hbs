@@ -17,9 +17,11 @@
             {{/each}}
         </div>
         <div class="hud-controls">
-            <button class="control-button open-selector" title="Open Emotive HUD Actor Selector">
-                <i class="fas fa-bars"></i>
-            </button>
+            {{#if isGM}}
+                <button class="control-button open-selector" title="Open Emotive HUD Actor Selector">
+                    <i class="fas fa-bars"></i>
+                </button>
+            {{/if}}
             <button class="control-button toggle-visibility" title="Hide Emotive HUD">
                 <i class="fas fa-chevron-down"></i>
             </button>

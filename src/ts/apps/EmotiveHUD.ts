@@ -1,7 +1,7 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
 import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
 import CONSTANTS from "../constants";
-import { getGame, getModule } from "../utils";
+import { getGame, getModule, isCurrentUserGM } from "../utils";
 
 export default class EmotiveHUD extends Application {
   private sidebarObserver: MutationObserver | null = null;
@@ -74,6 +74,7 @@ export default class EmotiveHUD extends Application {
     const isMinimized = getIsMinimized();
     
     return {
+      isGM: isCurrentUserGM(),
       isMinimized,
       isVertical: false,
       portraits: actors.map(actor => {
