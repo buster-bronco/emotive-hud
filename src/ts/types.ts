@@ -21,3 +21,8 @@ export interface PortraitData {
   name: string;
   isSelected?: boolean;
 }
+
+export interface PortraitUpdateData {
+  actorId: string;
+  timestamp: number;
+}

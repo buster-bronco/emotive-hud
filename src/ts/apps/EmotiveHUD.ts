@@ -1,4 +1,4 @@
-import { EmotiveHUDData, EmotiveHudModule } from "../types";
+import { EmotiveHUDData, EmotiveHudModule, PortraitUpdateData } from "../types";
 import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
 import CONSTANTS from "../constants";
 
@@ -177,5 +177,10 @@ export default class EmotiveHUD extends Application {
   private getActorPortrait(actor: Actor): string {
     // Get portrait from flags, fall back to default actor image
     return actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
+  }
+
+  public handlePortraitUpdate(data: PortraitUpdateData): void {
+    // TODO: Add animation for the updated portrait
+    this.render();
   }
 }

@@ -8,6 +8,7 @@
   "system": [],
   "dependencies": [],
   "scripts": [],
+  "socket": true,
   "compatibility": {
     "minimum": "12",
     "verified": "12",

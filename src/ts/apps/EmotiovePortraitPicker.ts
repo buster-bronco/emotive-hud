@@ -1,6 +1,7 @@
 import CONSTANTS from "../constants";
 import { getActorPortraits } from "../settings";
-import { EmotiveHudModule } from "../types";
+import { getGame } from "../utils";
+import { emitPortraitUpdated } from "../sockets";
 
 export default class EmotivePortraitPicker extends Application {
   private _actorId: string | null = null;
@@ -87,9 +88,8 @@ export default class EmotivePortraitPicker extends Application {
     console.log(CONSTANTS.DEBUG_PREFIX, 'Selected portrait:', portraitPath);
 
     try {
-      // Get the actor
-      const gameInstance = game as Game;
-      const actor = gameInstance.actors?.get(this._actorId);
+      const game = getGame();
+      const actor = game.actors?.get(this._actorId);
       if (!actor) {
           throw new Error('Actor not found');
       }
@@ -97,10 +97,10 @@ export default class EmotivePortraitPicker extends Application {
       // Update the portrait using flags
       await actor.setFlag(CONSTANTS.MODULE_ID, 'currentPortrait', portraitPath);
       
-      // Trigger a re-render of the HUD
-      const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
-      module.emotiveHUD.render();
+      // Emit socket event
+      emitPortraitUpdated(this._actorId);
       
+      // Close the picker
       this.close();
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
@@ -117,9 +117,8 @@ export default class EmotivePortraitPicker extends Application {
     }
 
     try {
-      // Get the actor
-      const gameInstance = game as Game;
-      const actor = gameInstance.actors?.get(this._actorId);
+      const game = getGame();
+      const actor = game.actors?.get(this._actorId);
       if (!actor) {
           throw new Error('Actor not found');
       }
@@ -127,9 +126,8 @@ export default class EmotivePortraitPicker extends Application {
       // Clear the portrait flag
       await actor.unsetFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
       
-      // Trigger a re-render of the HUD
-      const module = gameInstance.modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
-      module.emotiveHUD.render();
+      // Emit socket event
+      emitPortraitUpdated(this._actorId);
       
       this.close();
     } catch (error) {

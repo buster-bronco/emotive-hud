@@ -16,9 +16,12 @@ export const CONSTANTS = {
   /**
    * Debugging prefix console messages
    */
-  DEBUG_PREFIX: "EMOTIVE-HUD:"
-} as const;
+  DEBUG_PREFIX: "EMOTIVE-HUD:",
 
-// Using 'as const' makes all properties read-only and gives better type inference
+  /**
+   * Socket event name for module communication
+   */
+  SOCKET_NAME: `module.${id}`,
+} as const;
 
 export default CONSTANTS;

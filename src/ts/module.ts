@@ -5,6 +5,7 @@ import { EmotiveHudModule } from "./types";
 import { registerSettings } from "./settings";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
+import { initializeSocketListeners } from "./sockets";
 
 let module: EmotiveHudModule;
 
@@ -19,6 +20,8 @@ Hooks.once("init", () => {
   module.emotiveActorSelector = new EmotiveActorSelector();
   module.emotivePortraitPicker = new EmotivePortraitPicker();
   module.emotiveHUD = new EmotiveHUD();
+
+  initializeSocketListeners();
 });
 
 // EmotiveHUD hook
