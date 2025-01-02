@@ -15,7 +15,7 @@ export interface HUDState {
 }
 
 export const registerSettings = function() {
-  const gameInstance = game as Game;
+  const gameInstance = getGame();
 
   // Store all configured actors and their portrait folders
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorConfigs', {
@@ -74,13 +74,13 @@ export const setHUDState = async (state: HUDState): Promise<void> => {
 };
 
 export const getIsMinimized = (): boolean => {
-  const gameInstance = game as Game;
+  const gameInstance = getGame();
   const value = gameInstance.settings.get(CONSTANTS.MODULE_ID, 'isMinimized');
   return value as boolean;
 };
 
 export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
-  const gameInstance = game as Game;
+  const gameInstance = getGame();
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
 };
 

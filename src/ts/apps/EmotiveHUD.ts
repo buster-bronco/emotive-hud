@@ -144,7 +144,7 @@ export default class EmotiveHUD extends Application {
       return;
     }
 
-    const gameInstance = game as Game;
+    const gameInstance = getGame();
     const actor = gameInstance.actors?.get(actorId);
     if (!actor?.isOwner) {
       console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});

@@ -6,6 +6,7 @@ import { registerSettings } from "./settings";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 import { initializeSocketListeners } from "./sockets";
+import { getGame } from "./utils";
 
 let module: EmotiveHudModule;
 
@@ -14,7 +15,7 @@ Hooks.once("init", () => {
 
   console.log(`${CONSTANTS.DEBUG_PREFIX} Initializing ${CONSTANTS.MODULE_ID}`);
 
-  module = (game as Game).modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
+  module = getGame().modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
   
   // Initialize all applications
   module.emotiveActorSelector = new EmotiveActorSelector();
