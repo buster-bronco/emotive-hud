@@ -23,7 +23,10 @@ function handleSocketMessage(data: {
   // Handle different socket actions
   switch (data.action) {
     case 'updatePortrait':
-      handlePortraitUpdate(data.payload);
+      handlePortraitUpdate(data.payload as PortraitUpdateData);
+      break;
+    case 'refreshHUD':
+      getModule().emotiveHUD.render();
       break;
     default:
       console.warn(`${CONSTANTS.DEBUG_PREFIX} Unknown socket action:`, data.action);
@@ -34,6 +37,11 @@ function handlePortraitUpdate(data: PortraitUpdateData): void {
   const module = getModule();
   module.emotiveHUD.handlePortraitUpdate(data);
 }
+
+function handleHudRefresh(): void {
+  const module = getModule();
+}
+
 
 /**
  * Emit a socket event to notify other clients that a portrait was updated
@@ -59,4 +67,18 @@ export function emitPortraitUpdated(actorId: string): void {
   
   // Handle the update locally as well since emitter doesn't receive broadcast
   handlePortraitUpdate(updateData);
+}
+
+export function emitHUDRefresh(): void {
+  const game = getGame();
+  
+  const socketData = {
+    action: 'refreshHUD',
+    payload: null
+  };
+  
+  console.log(`${CONSTANTS.DEBUG_PREFIX} Emitting HUD refresh`);
+  
+  // Emit the socket message
+  game.socket?.emit(CONSTANTS.SOCKET_NAME, socketData);
 }

@@ -1,6 +1,7 @@
 import { CONSTANTS } from "../constants";
 import { getActorConfigs, getHUDState, setHUDState, updateActorConfig, type ActorConfig } from "../settings";
-import { getGame } from "../utils";
+import { emitHUDRefresh } from "../sockets";
+import { getGame, getModule } from "../utils";
 
 export default class EmotiveActorSelector extends Application {
   private selectedActors: ActorConfig[] = [];
@@ -208,5 +209,9 @@ export default class EmotiveActorSelector extends Application {
   private _onClickRefreshButton(event: Event): void {
     event.preventDefault();
     this.render(false);
+    
+    getModule().emotiveHUD.render();
+
+    emitHUDRefresh();
   }
 }
