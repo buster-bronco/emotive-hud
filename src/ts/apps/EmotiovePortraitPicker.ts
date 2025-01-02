@@ -12,7 +12,7 @@ export default class EmotivePortraitPicker extends Application {
   }
 
   static override get defaultOptions(): ApplicationOptions {
-    return mergeObject(super.defaultOptions, {
+    return foundry.utils.mergeObject(super.defaultOptions, {
       id: "emotive-portrait-picker",
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotion-picker.hbs`,
       classes: ["emotive-picker-popup"],
