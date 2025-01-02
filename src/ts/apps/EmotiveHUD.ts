@@ -1,6 +1,7 @@
-import { EmotiveHUDData, EmotiveHudModule, PortraitUpdateData } from "../types";
+import { EmotiveHUDData, PortraitUpdateData } from "../types";
 import { getIsMinimized, setIsMinimized, getHUDState, HUDState } from "../settings";
 import CONSTANTS from "../constants";
+import { getGame, getModule } from "../utils";
 
 export default class EmotiveHUD extends Application {
   private sidebarObserver: MutationObserver | null = null;
@@ -11,10 +12,6 @@ export default class EmotiveHUD extends Application {
     
     // Listen for minimized state changes from settings
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
-  }
-
-  private get module(): EmotiveHudModule {
-    return (game as Game).modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
   }
 
   static override get defaultOptions(): ApplicationOptions {
@@ -98,10 +95,9 @@ export default class EmotiveHUD extends Application {
     };
   }
   
-  // TODO:  This function needs to renormalize because Foundry UUIDs for actors are prefixed with `Actor.` 
-  //        We need to look if this current implementation is ideal or if it's better to just renormalize early in the HUDState itself 
+  // This function needs to renormalize because Foundry UUIDs for actors are prefixed with `Actor.` 
   private getActorsToShow(): Actor[] {
-    const gameInstance = game as Game;
+    const gameInstance = getGame();
     const hudState: HUDState = getHUDState();
     console.log(CONSTANTS.DEBUG_PREFIX, "HUDState actors:", hudState.actors);
   
@@ -130,7 +126,6 @@ export default class EmotiveHUD extends Application {
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
     
     const portraits = html.find('.portrait');
-    console.log(CONSTANTS.DEBUG_PREFIX, `Found ${portraits.length} portraits`);
     
     portraits.on('dblclick', this._onPortraitDoubleClick.bind(this));
   }
@@ -158,12 +153,12 @@ export default class EmotiveHUD extends Application {
     console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
 
     console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
-    this.module.emotivePortraitPicker.showForActor(actorId, portraitElement);
+    getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
     event.preventDefault();
-    this.module.emotiveActorSelector.render(true);
+    getModule().emotiveActorSelector.render(true);
   }
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {

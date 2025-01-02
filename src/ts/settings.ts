@@ -1,4 +1,5 @@
 import { CONSTANTS } from './constants';
+import { getGame } from './utils';
 
 export interface ActorConfig {
   uuid: string;
@@ -55,35 +56,32 @@ export const registerSettings = function() {
 
 // Helper functions to interact with the settings
 export const getActorConfigs = (): Record<string, ActorConfig> => {
-  return (game as Game).settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
 
 export const setActorConfig = async (uuid: string, config: ActorConfig): Promise<void> => {
   const configs = getActorConfigs();
   configs[uuid] = config;
-  await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
 };
 
 export const getHUDState = (): HUDState => {
-  return (game as Game).settings.get(CONSTANTS.MODULE_ID, 'hudState') as HUDState;
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudState') as HUDState;
 };
 
 export const setHUDState = async (state: HUDState): Promise<void> => {
-  await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'hudState', state);
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudState', state);
 };
 
 export const getIsMinimized = (): boolean => {
   const gameInstance = game as Game;
   const value = gameInstance.settings.get(CONSTANTS.MODULE_ID, 'isMinimized');
-  console.log(`${CONSTANTS.DEBUG_PREFIX} Getting minimized state:`, value);
   return value as boolean;
 };
 
 export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
   const gameInstance = game as Game;
-  console.log(`${CONSTANTS.DEBUG_PREFIX} Setting minimized state to:`, isMinimized);
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
-  console.log(`${CONSTANTS.DEBUG_PREFIX} State set complete`);
 };
 
 export const cacheActorPortraits = async (uuid: string, folderPath: string): Promise<void> => {
@@ -92,7 +90,7 @@ export const cacheActorPortraits = async (uuid: string, folderPath: string): Pro
 
   try {
     // Only GM can browse files
-    if (!(game as Game).user?.isGM) return;
+    if (!getGame().user?.isGM) return;
     
     const browser = await FilePicker.browse("data", folderPath);
     const portraits = browser.files.filter(file => 
@@ -108,7 +106,7 @@ export const cacheActorPortraits = async (uuid: string, folderPath: string): Pro
       cachedPortraits: portraits
     };
 
-    await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
   } catch (error) {
     console.error(CONSTANTS.DEBUG_PREFIX, 'Error caching portraits:', error);
     throw error;

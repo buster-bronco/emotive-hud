@@ -1,6 +1,7 @@
 import { CONSTANTS } from "../constants";
 import { getActorConfigs, setActorConfig, getHUDState, setHUDState, type ActorConfig } from "../settings";
 import { cacheActorPortraits } from "../settings";
+import { getGame } from "../utils";
 
 export default class EmotiveActorSelector extends Application {
   private selectedActors: ActorConfig[] = [];
@@ -42,9 +43,6 @@ export default class EmotiveActorSelector extends Application {
           portraitFolder: config?.portraitFolder || ""
         };
       });
-
-      console.log(CONSTANTS.MODULE_ID, " hudState: ", hudState)
-      console.log(CONSTANTS.MODULE_ID, " configs: ", configs)
   }
 
   private async _updateSettings(): Promise<void> {
@@ -80,6 +78,8 @@ export default class EmotiveActorSelector extends Application {
     if (!event.dataTransfer) return;
     
     const target = event.currentTarget as HTMLElement;
+    if (!target?.dataset?.actorId) return;
+
     const actorId = target.dataset.actorId;
     
     console.log(CONSTANTS.DEBUG_PREFIX, "Actor selected for drag:", actorId);
@@ -160,7 +160,7 @@ export default class EmotiveActorSelector extends Application {
   }
 
   override get title(): string {
-    return (game as Game).i18n.localize("EMOTIVEHUD.emotive-actor-selector");
+    return getGame().i18n.localize("EMOTIVEHUD.emotive-actor-selector");
   }
 
   static override get defaultOptions(): ApplicationOptions {
