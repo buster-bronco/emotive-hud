@@ -39,8 +39,7 @@ export default class EmotiveActorSelector extends Application {
         const config = configs[uuid];
         return {
           uuid,
-          portraitFolder: config?.portraitFolder || "",
-          portraitPath: config?.portraitPath || ""
+          portraitFolder: config?.portraitFolder || ""
         };
       });
 
@@ -53,8 +52,7 @@ export default class EmotiveActorSelector extends Application {
     for (const actor of this.selectedActors) {
       await setActorConfig(actor.uuid, {
         uuid: actor.uuid,
-        portraitFolder: actor.portraitFolder,
-        portraitPath: actor.portraitPath
+        portraitFolder: actor.portraitFolder
       });
     }
 
@@ -104,8 +102,7 @@ export default class EmotiveActorSelector extends Application {
           console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);
           this.selectedActors.push({
             uuid: data.uuid,
-            portraitFolder: "",
-            portraitPath: ""
+            portraitFolder: ""
           });
           this._updateSettings();
           this.render(false);
@@ -126,8 +123,14 @@ export default class EmotiveActorSelector extends Application {
       type: "folder",
       callback: async (path: string) => {
         try {
-          // Cache portraits when folder is selected
+          // Update local state immediately
+          actor.portraitFolder = path;
+          this.render(false);  // First render to show folder path immediately
+
+          // Then cache portraits in the background
           await cacheActorPortraits(uuid, path);
+          
+          // Render again in case caching changed anything
           this.render(false);
         } catch (error) {
           console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
@@ -177,14 +180,13 @@ export default class EmotiveActorSelector extends Application {
           ...actorRef,
           name: actor?.name,
           img: actor?.img,
-          portraitFolder: actorRef.portraitFolder || "",
-          portraitPath: actorRef.portraitPath || ""
+          portraitFolder: actorRef.portraitFolder || ""
         };
       })
     );
 
     console.log(CONSTANTS.DEBUG_PREFIX, "selectedActors:", enrichedActors);
-  
+
     return {
       selectedActors: enrichedActors,
     };

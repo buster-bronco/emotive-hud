@@ -3,8 +3,6 @@ import { CONSTANTS } from './constants';
 export interface ActorConfig {
   uuid: string;
   portraitFolder?: string;
-  portraitPath?: string;
-  currentPortrait?: string;
   cachedPortraits?: string[]; 
 }
 
@@ -56,18 +54,6 @@ export const registerSettings = function() {
 };
 
 // Helper functions to interact with the settings
-export const updateActorPortrait = async (uuid: string, portraitPath: string | null): Promise<void> => {
-  const configs = getActorConfigs();
-  if (!configs[uuid]) return;
-  
-  configs[uuid] = {
-    ...configs[uuid],
-    currentPortrait: portraitPath || undefined
-  };
-  
-  await (game as Game).settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-};
-
 export const getActorConfigs = (): Record<string, ActorConfig> => {
   return (game as Game).settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
@@ -119,7 +105,6 @@ export const cacheActorPortraits = async (uuid: string, folderPath: string): Pro
     configs[uuid] = {
       ...configs[uuid],
       portraitFolder: folderPath,
-      portraitPath: folderPath,
       cachedPortraits: portraits
     };
 
