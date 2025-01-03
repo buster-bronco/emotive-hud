@@ -1,5 +1,6 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorLimit, getGridColumns, getHudLayout } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, getActorLimit, getGridColumns, getHudLayout } from "../settings";
+import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 

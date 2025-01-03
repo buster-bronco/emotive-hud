@@ -1,18 +1,6 @@
 import { CONSTANTS } from './constants';
+import { ActorConfig, HUDState } from './types';
 import { getGame } from './utils';
-
-export interface ActorConfig {
-  uuid: string;
-  portraitFolder?: string;
-  cachedPortraits?: string[]; 
-}
-
-export interface HUDState {
-  actors: {
-    uuid: string;
-    position: number;  // Index/position on the Emotive HUD
-  }[];
-}
 
 export const registerSettings = function() {
   const gameInstance = getGame();

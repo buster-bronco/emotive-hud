@@ -27,3 +27,16 @@ export interface PortraitUpdateData {
   actorId: string;
   timestamp: number;
 }
+
+export interface ActorConfig {
+  uuid: string;
+  portraitFolder?: string;
+  cachedPortraits?: string[];
+}
+
+export interface HUDState {
+  actors: {
+    uuid: string;
+    position: number; // Index/position on the Emotive HUD
+  }[];
+}

@@ -1,5 +1,6 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getActorLimit, getHUDState, setHUDState, updateActorConfig, type ActorConfig } from "../settings";
+import { getActorConfigs, getActorLimit, getHUDState, setHUDState, updateActorConfig } from "../settings";
+import { ActorConfig } from '../types';
 import { emitHUDRefresh } from "../sockets";
 import { getGame, getModule } from "../utils";
 
