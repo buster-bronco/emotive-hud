@@ -1,5 +1,5 @@
 import CONSTANTS from "../constants";
-import { getActorPortraits } from "../settings";
+import { getActorPortraits, getHudLayout } from "../settings";
 import { getGame } from "../utils";
 import { emitPortraitUpdated } from "../sockets";
 
@@ -55,19 +55,27 @@ export default class EmotivePortraitPicker extends Application {
 
   override setPosition(): void {
     if (!this.element || !this._anchor) return;
-
+    
     const position = this._anchor.getBoundingClientRect();
     const pickerHeight = this.element.height() || 0;
     const pickerWidth = this.element.width() || 0;
-
-    // Position above the portrait, centered
-    const top = position.top - pickerHeight - 5;
-    const left = position.left + (position.width / 2) - (pickerWidth / 2);
-
-    this.element.css({
-      top: `${top}px`,
-      left: `${left}px`
-    });
+  
+    // Check if we're in embedded mode
+    const isEmbedded = getHudLayout() === 'embedded';
+  
+    if (isEmbedded) {
+      // Position below with bottom property
+      this.element.css({
+        bottom: `${window.innerHeight - position.bottom - pickerHeight - 5}px`,
+        left: `${position.left + (position.width / 2) - (pickerWidth / 2)}px`
+      });
+    } else {
+      // Original floating behavior using top
+      this.element.css({
+        top: `${position.top - pickerHeight - 5}px`,
+        left: `${position.left + (position.width / 2) - (pickerWidth / 2)}px`
+      });
+    }
   }
 
   override activateListeners(html: JQuery<HTMLElement>): void {
