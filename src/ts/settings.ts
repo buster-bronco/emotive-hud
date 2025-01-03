@@ -47,7 +47,7 @@ export const registerSettings = function() {
     config: true,
     // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
     type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 20, step: 1}),
-    default: 9,
+    default: 15,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.actorLimitChanged`, value);
     }
@@ -59,7 +59,7 @@ export const registerSettings = function() {
     scope: "client",
     config: true,
     // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
-    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 5, step: 1}),
+    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 6, step: 1}),
     default: 3,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, value);
