@@ -14,9 +14,15 @@ export default class EmotiveHUD extends Application {
     
     // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
-    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => this.render());
-    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.render(true));
+    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => this.debouncedRender(true));
+    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.debouncedRender(true));
     
+  }
+
+  private debouncedRender(force?: boolean): void {
+    foundry.utils.debounce(() => {
+      this.render(force);
+    }, 100)();
   }
 
   get isFloating(): boolean {
@@ -72,7 +78,28 @@ export default class EmotiveHUD extends Application {
     return super.close(options);
   }
 
+  private cleanup(): void {
+    // Clean up any existing elements
+    const existingEmbedded = document.querySelector('#emotive-hud-container');
+    if (existingEmbedded) {
+      existingEmbedded.remove();
+    }
+
+    const existingFloating = document.getElementById(this.id);
+    if (existingFloating) {
+      existingFloating.remove();
+    }
+
+    // Clean up sidebar observer if it exists
+    if (this.sidebarObserver) {
+      this.sidebarObserver.disconnect();
+      this.sidebarObserver = null;
+    }
+  }
+
   override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
+    this.cleanup();
+
     if (this.isFloating) {
       return this.renderFloating(force, options);
     } else {
@@ -81,13 +108,6 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // Clean up any existing embedded HUD first
-    const existingEmbedded = document.querySelector('#emotive-hud-container');
-    if (existingEmbedded) {
-      existingEmbedded.remove();
-    }
-    
-    // Use original floating implementation
     const templateData = this.getData();
     const content = await renderTemplate(this.template!, templateData);
     
@@ -118,18 +138,6 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // Clean up any existing floating HUD first
-    const existingFloating = document.getElementById(this.id);
-    if (existingFloating) {
-      existingFloating.remove();
-    }
-    
-    // Clean up sidebar observer if it exists
-    if (this.sidebarObserver) {
-      this.sidebarObserver.disconnect();
-      this.sidebarObserver = null;
-    }
-
     // Find the chat log
     const chatLog = document.getElementById('chat');
     if (!chatLog) {
