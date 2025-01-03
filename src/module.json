@@ -1,12 +1,9 @@
 {
-  "$schema": "https://json.schemastore.org/foundryvtt-manifest.json",
   "id": "emotive-hud",
   "title": "Emotive HUD",
   "description": "Adds an expressive character portrait interface",
   "version": "1.0.0",
   "packs": [],
-  "system": [],
-  "dependencies": [],
   "scripts": [],
   "socket": true,
   "compatibility": {

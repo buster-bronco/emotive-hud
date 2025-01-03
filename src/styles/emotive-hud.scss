@@ -1,3 +1,30 @@
+// Common portrait styles
+.portrait-container {
+  display: grid;
+  background: rgba(30, 0, 0, 0.7);
+  border: 1px solid var(--color-border-dark);
+  
+  .portrait {
+    border: 1px solid var(--color-border-dark);
+    overflow: hidden;
+    
+    &.flash {
+      animation: portrait-flash 0.5s ease-out;
+    }
+    
+    @keyframes portrait-flash {
+      0% { border-color: white; }
+      100% { border-color: var(--color-border-dark); }
+    }
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}
+
 // Embedded HUD styles (in chat)
 section.chat-sidebar.directory.flexcol.active {
   #emotive-hud-container {
@@ -17,24 +44,13 @@ section.chat-sidebar.directory.flexcol.active {
     position: relative;
     
     .portrait-container {
-      display: grid;
       gap: 1px;
       grid-template-columns: repeat(var(--grid-columns), 1fr);
-      background: rgba(30, 0, 0, 0.7);
-      border: 1px solid var(--color-border-dark);
       border-bottom: none;
       width: 100%;
       
       .portrait {
         aspect-ratio: 1;
-        border: 1px solid var(--color-border-dark);
-        overflow: hidden;
-        
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
       }
     }
     
@@ -99,29 +115,14 @@ section.chat-sidebar.directory.flexcol.active {
     gap: 4px;
 
     .portrait-container {
-      display: grid;
       gap: 8px;
       padding: 8px;
-      background: rgba(30, 0, 0, 0.7);
-      border: 1px solid var(--color-border-dark);
       border-radius: 3px;
-      
       --grid-columns: 3;
       grid-template-columns: repeat(var(--grid-columns), 125px);
       
-      .portrait {
-        border: 1px solid var(--color-border-dark);
-        overflow: hidden;
-        
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        
-        &:hover {
-          border-color: var(--color-border-highlight);
-        }
+      .portrait:hover {
+        border-color: var(--color-border-highlight);
       }
     }
     

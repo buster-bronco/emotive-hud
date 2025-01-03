@@ -4,6 +4,8 @@ import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
+const _portraitUpdateFlashTime : number = 500;
+
 export default class EmotiveHUD extends Application {
   private sidebarObserver: MutationObserver | null = null;  
 
@@ -286,7 +288,15 @@ export default class EmotiveHUD extends Application {
     return actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
   }
 
-  public handlePortraitUpdate(_updateData: PortraitUpdateData): void {
+  public handlePortraitUpdate(updateData: PortraitUpdateData): void {
     this.render();
+    // Add flash effect after render
+    setTimeout(() => {
+      const portrait = document.querySelector(`.portrait[data-actor-id="${updateData.actorId}"]`);
+      if (portrait) {
+        portrait.classList.add('flash');
+        setTimeout(() => portrait.classList.remove('flash'), _portraitUpdateFlashTime);
+      }
+    }, 0);
   }
 }
