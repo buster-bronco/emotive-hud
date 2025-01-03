@@ -65,7 +65,6 @@ export const registerSettings = function() {
     }
   });
 
-  // New setting: Grid Columns
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'gridColumns', {
     name: "Grid Columns",
     hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
@@ -76,6 +75,24 @@ export const registerSettings = function() {
     default: 3,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, value);
+    }
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudLayout', {
+    name: "HUD Layout",
+    hint: "Choose whether to display the HUD embedded in chat or as a floating window",
+    scope: "client",
+    config: true,
+    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
+    type: new (foundry as any).data.fields.StringField({
+      choices: {
+        "embedded": "Embedded in Chat",
+        "floating": "Floating Window"
+      },
+    }),
+    default: "embedded",
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
 };
@@ -157,6 +174,10 @@ export const getActorLimit = (): number => {
 
 export const getGridColumns = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
+};
+
+export const getHudLayout = (): string => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudLayout') as string;
 };
 
 // Get cached portraits for an actor
