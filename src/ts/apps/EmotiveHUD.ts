@@ -268,6 +268,8 @@ export default class EmotiveHUD extends Application {
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
+    if (!getGame().user?.isGM) throw "Only GM Can Open Selector";
+
     event.preventDefault();
     getModule().emotiveActorSelector.render(true);
   }
