@@ -97,7 +97,7 @@ section.chat-sidebar.directory.flexcol.active {
   bottom: 10px;
   z-index: 70;
   transition: right 0.1s ease;
-  pointer-events: all;
+  pointer-events: none;
   
   // Default positioning (expanded sidebar)
   right: 320px; 
@@ -115,6 +115,7 @@ section.chat-sidebar.directory.flexcol.active {
     gap: 4px;
 
     .portrait-container {
+      pointer-events: all;
       gap: 8px;
       padding: 8px;
       border-radius: 3px;
@@ -127,6 +128,7 @@ section.chat-sidebar.directory.flexcol.active {
     }
     
     .hud-controls {
+      pointer-events: all;
       display: flex;
       flex-direction: column;
       gap: 4px;
