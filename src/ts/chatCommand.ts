@@ -28,7 +28,7 @@ export function initializeChatCommands(): void {
   });
 }
 
-export async function handleEmotiveChatMessage(messageText: string): Promise<void> {
+async function handleEmotiveChatMessage(messageText: string): Promise<void> {
   const game = getGame();
   // First try user's assigned character
   let speaker: StoredDocument<Actor> | undefined = game.user?.character;
