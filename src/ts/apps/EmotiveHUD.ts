@@ -1,20 +1,23 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorLimit, getGridColumns } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, HUDState, getActorLimit, getGridColumns, getHudLayout } from "../settings";
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
 export default class EmotiveHUD extends Application {
-  private sidebarObserver: MutationObserver | null = null;
+  private sidebarObserver: MutationObserver | null = null;  
 
   constructor(options = {}) {
     super(options);
-    //this.initializeSidebarObserver();
     
     // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
-    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => {
-      this.render();
-    });
+    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => this.render());
+    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.render(true));
+    
+  }
+
+  get isFloating(): boolean {
+    return getHudLayout() === 'floating';
   }
 
   static override get defaultOptions(): ApplicationOptions {
@@ -30,6 +33,31 @@ export default class EmotiveHUD extends Application {
     this.sidebarObserver = new MutationObserver(() => {
       this.setPosition();
     });
+
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && this.sidebarObserver) {
+      this.sidebarObserver.observe(sidebar, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+  }
+
+
+  override setPosition(): void {
+    if (!this.isFloating || !this.element) return;
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    // Calculate position based on sidebar state
+    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
+    const offset = isSidebarCollapsed ? 10 : 330;
+    
+    this.element.css({
+      right: `${offset}px`,
+      bottom: '10px'
+    });
   }
 
   override async close(options?: Application.CloseOptions): Promise<void> {
@@ -41,8 +69,65 @@ export default class EmotiveHUD extends Application {
     return super.close(options);
   }
 
-  override async render(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // Find the chat log header
+  override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
+    if (this.isFloating) {
+      return this.renderFloating(force, options);
+    } else {
+      return this.renderEmbedded(force, options);
+    }
+  }
+
+  private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
+    // Clean up any existing embedded HUD first
+    const existingEmbedded = document.querySelector('#emotive-hud-container');
+    if (existingEmbedded) {
+      existingEmbedded.remove();
+    }
+    
+    // Use original floating implementation
+    const templateData = this.getData();
+    const content = await renderTemplate(this.template!, templateData);
+    
+    // Create or get the floating container
+    let element = document.getElementById(this.id);
+    if (!element) {
+      element = document.createElement('div');
+      element.id = this.id;
+      document.body.appendChild(element);
+    }
+    
+    // Set classes after ensuring element exists
+    element.className = 'emotive-hud floating';
+    element.innerHTML = content;
+    
+    // Start observing sidebar if needed
+    if (!this.sidebarObserver) {
+      this.initializeSidebarObserver();
+    }
+    
+    this.setPosition();
+    
+    if (element instanceof HTMLElement) {
+      this.activateListeners($(element));
+    }
+
+    return this;
+  }
+
+  private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
+    // Clean up any existing floating HUD first
+    const existingFloating = document.getElementById(this.id);
+    if (existingFloating) {
+      existingFloating.remove();
+    }
+    
+    // Clean up sidebar observer if it exists
+    if (this.sidebarObserver) {
+      this.sidebarObserver.disconnect();
+      this.sidebarObserver = null;
+    }
+
+    // Find the chat log
     const chatLog = document.getElementById('chat');
     if (!chatLog) {
       console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find chat log element`);
@@ -58,15 +143,11 @@ export default class EmotiveHUD extends Application {
     if (!hudContainer) {
       hudContainer = document.createElement('div');
       hudContainer.id = 'emotive-hud-container';
-      
-      // Insert at the top of the chat log
       chatLog.insertBefore(hudContainer, chatLog.firstChild);
     }
 
-    // Update the content
     hudContainer.innerHTML = content;
 
-    // Activate listeners
     if (hudContainer instanceof HTMLElement) {
       this.activateListeners($(hudContainer));
     }
