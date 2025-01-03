@@ -22,6 +22,11 @@ export const CONSTANTS = {
    * Socket event name for module communication
    */
   SOCKET_NAME: `module.${id}`,
+
+  /**
+   * Chat command used for the emotive chat message functionality
+   */
+  CHAT_COMMAND: "/say"
 } as const;
 
 export default CONSTANTS;

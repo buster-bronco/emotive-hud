@@ -7,6 +7,7 @@ import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 import { initializeSocketListeners } from "./sockets";
 import { getGame } from "./utils";
+import { initializeChatCommands } from "./chatCommand";
 
 let module: EmotiveHudModule;
 
@@ -23,6 +24,7 @@ Hooks.once("init", () => {
   module.emotiveHUD = new EmotiveHUD();
 
   initializeSocketListeners();
+  initializeChatCommands();
 });
 
 // EmotiveHUD hook
