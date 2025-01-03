@@ -10,17 +10,25 @@
 }
 
 .emotion-picker-menu {
+  $item-size: 48px;
+  $gap-size: 4px;
+  $visible-rows: 3;
+  $grid-height: ($item-size * $visible-rows) + ($gap-size * ($visible-rows - 1));
+  
   padding: 4px;
   
   .emotion-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 4px;
+    grid-auto-rows: $item-size;
+    gap: $gap-size;
+    max-height: $grid-height;
+    overflow-y: auto;
+    padding-right: $gap-size;
     
     .emotion-item {
-      width: 48px;
-      height: 48px;
+      width: $item-size;
+      height: $item-size;
       border: 1px solid var(--color-border-dark);
       border-radius: 4px;
       overflow: hidden;
