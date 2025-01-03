@@ -46,8 +46,8 @@ export const registerSettings = function() {
     scope: "world",
     config: true,
     // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
-    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 20, step: 1}),
-    default: 15,
+    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 15, step: 1}),
+    default: 9,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.actorLimitChanged`, value);
     }
