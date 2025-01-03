@@ -7,6 +7,9 @@ import { getGame, getModule } from "../utils";
 export default class EmotiveActorSelector extends Application {
   private selectedActors: ActorConfig[] = [];
   protected override _dragDrop: DragDrop[] = [];
+  private draggedItem: HTMLElement | null = null;
+  private dragStartY: number = 0;
+  private dropTargetIndex: number | null = null;
   
   constructor(options = {}) {
     super(options);
@@ -197,7 +200,117 @@ export default class EmotiveActorSelector extends Application {
     html.find(".actor-portrait.clickable")
       .on("click", this._onClickActorPortrait.bind(this));
 
+    const dragHandles = html.find(".drag-handle");
+    dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));
+    
+    $(document)
+      .on<'mousemove'>('mousemove', this._onDocumentMouseMove.bind(this))
+      .on<'mouseup'>('mouseup', this._onDocumentMouseUp.bind(this));
+
     this._dragDrop.forEach(dd => dd.bind(html[0]));
+  }
+
+  override close(options?: Application.CloseOptions): Promise<void> {
+    // Clean up document-level event listeners
+    $(document)
+      .off("mousemove.actor-selector")
+      .off("mouseup.actor-selector");
+    
+    return super.close(options);
+  }
+
+  private _onDragHandleMouseDown(event: JQuery.MouseDownEvent): void {
+    const handle = event.currentTarget;
+    const item = handle.closest(".selected-actor") as HTMLElement;
+    if (!item) return;
+  
+    this.draggedItem = item;
+    this.dragStartY = event.pageY;
+    this.dropTargetIndex = null;  // Reset new index
+    
+    item.classList.add("dragging");
+    event.preventDefault();
+  }
+  
+  private _onDocumentMouseMove(event: JQuery.MouseMoveEvent): void {
+    if (!this.draggedItem) return;
+  
+    const list = this.draggedItem.parentElement;
+    if (!list) return;
+  
+    const items = Array.from(list.children) as HTMLElement[];
+    const draggedIndex = items.indexOf(this.draggedItem);
+    
+    // Calculate mouse movement
+    const mouseY = event.pageY;
+    const deltaY = mouseY - this.dragStartY;
+    
+    // Update position of dragged item
+    this.draggedItem.style.transform = `translateY(${deltaY}px)`;
+    
+    // Find new position
+    const draggedRect = this.draggedItem.getBoundingClientRect();
+    const draggedMiddle = draggedRect.top + draggedRect.height / 2;
+    
+    let potentialdropTargetIndex = draggedIndex;
+    
+    items.forEach((item, index) => {
+      if (item === this.draggedItem) return;
+      
+      const rect = item.getBoundingClientRect();
+      const middle = rect.top + rect.height / 2;
+      
+      if (index < draggedIndex && draggedMiddle < middle) {
+        potentialdropTargetIndex = index;
+      } else if (index > draggedIndex && draggedMiddle > middle) {
+        potentialdropTargetIndex = index;
+      }
+    });
+    
+    if (potentialdropTargetIndex !== draggedIndex) {
+      if (potentialdropTargetIndex < draggedIndex) {
+        list.insertBefore(this.draggedItem, items[potentialdropTargetIndex]);
+      } else {
+        list.insertBefore(this.draggedItem, items[potentialdropTargetIndex + 1]);
+      }
+      
+      // Reset transform on other items
+      items.forEach(item => {
+        if (item !== this.draggedItem) {
+          item.style.transform = "";
+        }
+      });
+      
+      this.dragStartY = mouseY;
+      this.dropTargetIndex = potentialdropTargetIndex;  // Store the new index
+    }
+  }
+  
+  private _onDocumentMouseUp(_event: JQuery.MouseUpEvent): void {
+    if (!this.draggedItem) return;
+    
+    if (this.dropTargetIndex !== null) {
+      // Get all actor elements in their current DOM order
+      const items = Array.from(this.draggedItem.parentElement?.children || []);
+      
+      // Rebuild selectedActors array based on current DOM order
+      this.selectedActors = items.map(item => {
+        const uuid = item.getAttribute('data-uuid');
+        const existingConfig = this.selectedActors.find(actor => actor.uuid === uuid);
+        return {
+          uuid: uuid!,
+          portraitFolder: existingConfig?.portraitFolder || ""
+        };
+      });
+      
+      console.log('Updated selectedActors after drag:', this.selectedActors);
+    }
+    
+    this.draggedItem.style.transform = "";
+    this.draggedItem.classList.remove("dragging");
+    this.draggedItem = null;
+    this.dragStartY = 0;
+    this.dropTargetIndex = null;
   }
 
   private async _onClickApplyButton(event: Event): Promise<void> {
