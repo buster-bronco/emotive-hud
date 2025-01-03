@@ -214,7 +214,32 @@ export default class EmotiveHUD extends Application {
     
     const portraits = html.find('.portrait');
     
+    portraits.on('contextmenu', this._onPortraitRightClick.bind(this));
     portraits.on('dblclick', this._onPortraitDoubleClick.bind(this));
+  }
+
+  private async _onPortraitRightClick(event: JQuery.ContextMenuEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const portraitElement = event.currentTarget as HTMLElement;
+    const actorId = portraitElement.dataset.actorId;
+    
+    if (!actorId) {
+      console.log(CONSTANTS.DEBUG_PREFIX, "No actor ID found");
+      return;
+    }
+
+    const gameInstance = getGame();
+    const actor = gameInstance.actors?.get(actorId);
+    if (!actor?.isOwner) {
+      console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
+      return;
+    }
+    console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
+
+    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
+    getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
   private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
@@ -237,8 +262,8 @@ export default class EmotiveHUD extends Application {
     }
     console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
 
-    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
-    getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
+    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Sheet");
+    actor.sheet?.render(true);
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
