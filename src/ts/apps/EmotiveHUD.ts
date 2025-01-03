@@ -8,7 +8,7 @@ export default class EmotiveHUD extends Application {
 
   constructor(options = {}) {
     super(options);
-    this.initializeSidebarObserver();
+    //this.initializeSidebarObserver();
     
     // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
@@ -41,35 +41,37 @@ export default class EmotiveHUD extends Application {
     return super.close(options);
   }
 
-  override render(force?: boolean, options?: Application.RenderOptions): this {
-    super.render(force, options);
-    
-    // Start observing sidebar after render
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar && this.sidebarObserver) {
-      this.sidebarObserver.observe(sidebar, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
+  override async render(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
+    // Find the chat log header
+    const chatLog = document.getElementById('chat');
+    if (!chatLog) {
+      console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find chat log element`);
+      return this;
     }
-    
+
+    // Render the template
+    const templateData = this.getData();
+    const content = await renderTemplate(this.template!, templateData);
+
+    // Create or get the container for our HUD
+    let hudContainer = chatLog.querySelector('#emotive-hud-container');
+    if (!hudContainer) {
+      hudContainer = document.createElement('div');
+      hudContainer.id = 'emotive-hud-container';
+      
+      // Insert at the top of the chat log
+      chatLog.insertBefore(hudContainer, chatLog.firstChild);
+    }
+
+    // Update the content
+    hudContainer.innerHTML = content;
+
+    // Activate listeners
+    if (hudContainer instanceof HTMLElement) {
+      this.activateListeners($(hudContainer));
+    }
+
     return this;
-  }
-
-  override setPosition(): void {
-    if (!this.element) return;
-
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar) return;
-
-    // Calculate position based on sidebar state
-    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
-    const offset = isSidebarCollapsed ? 10 : 330; // 0/320 + 10px margin
-    
-    this.element.css({
-      right: `${offset}px`,
-      bottom: '10px'
-    });
   }
 
   override getData(): EmotiveHUDData {
@@ -135,8 +137,6 @@ export default class EmotiveHUD extends Application {
   }
 
   private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
-    console.log(CONSTANTS.DEBUG_PREFIX, "Portrait double-clicked");
-
     event.preventDefault();
     event.stopPropagation();
 
@@ -168,7 +168,6 @@ export default class EmotiveHUD extends Application {
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     const currentState = getIsMinimized();
-    console.log(`${CONSTANTS.DEBUG_PREFIX} Toggling visibility from`, currentState);
     await setIsMinimized(!currentState);
     this.render();  // Force a re-render after setting the new state
   }
@@ -178,8 +177,7 @@ export default class EmotiveHUD extends Application {
     return actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
   }
 
-  public handlePortraitUpdate(data: PortraitUpdateData): void {
-    // TODO: Add animation for the updated portrait
+  public handlePortraitUpdate(_updateData: PortraitUpdateData): void {
     this.render();
   }
 }
