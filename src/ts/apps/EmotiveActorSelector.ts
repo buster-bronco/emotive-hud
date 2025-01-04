@@ -361,6 +361,8 @@ export default class EmotiveActorSelector extends Application {
       
       // Emit refresh to other clients only after all updates are complete
       emitHUDRefresh();
+
+      this.close();
       
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error saving changes:', error);
