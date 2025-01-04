@@ -32,7 +32,11 @@ module.exports = {
         console.log("Styles:", styles ? "Has content" : "Empty");
         console.log("Writing to:", "dist/style.css");
         if (styles) {
-          require('fs').writeFileSync("dist/style.css", styles);
+          const fs = require('fs');
+          if (!fs.existsSync('dist')){
+            fs.mkdirSync('dist', { recursive: true });
+          }
+          fs.writeFileSync("dist/style.css", styles);
         }
       },
       watch: ["src/styles/*.scss"]
