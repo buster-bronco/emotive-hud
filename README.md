@@ -4,6 +4,8 @@ Emotive HUD is a [Foundry VTT](https://foundryvtt.com) module that brings storie
 
 ## Features
 
+https://github.com/user-attachments/assets/79a3ee97-8370-482d-a1c0-9a730b339bc2
+
 ### Dynamic Portrait HUD
 
 - Right-click on a character portrait in the HUD to open the expression picker
@@ -16,6 +18,8 @@ Emotive HUD is a [Foundry VTT](https://foundryvtt.com) module that brings storie
 - Compatible with [Chat Commander](https://foundryvtt.com/packages/_chatcommands/)
 
 ### Flexible Layout
+
+https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
 
 - Each player can customize their view with adjustable grid columns and choice of embedded chat or floating window display to match their screen setup
 - Minimizable interface 
