@@ -165,6 +165,27 @@ export default class EmotiveActorSelector extends Application {
     }) as ApplicationOptions;
   }
 
+  protected override _getHeaderButtons(): Application.HeaderButton[] {
+    const buttons = super._getHeaderButtons();
+    
+    buttons.unshift({
+      label: "Reset Changes",
+      class: "reset-changes",
+      icon: "fas fa-rotate-left",
+      onclick: () => {
+        const selector = getModule().emotiveActorSelector;
+        selector._onResetChanges();
+      }
+    });
+  
+    return buttons;
+  }
+  
+  private async _onResetChanges(): Promise<void> {
+    await this._loadFromSettings();
+    this.render(false);
+  }
+
   override async getData() {
     const enrichedActors = await Promise.all(
       this.selectedActors.map(async (actorRef) => {
@@ -188,7 +209,7 @@ export default class EmotiveActorSelector extends Application {
   override activateListeners(html: JQuery<HTMLElement>): void {
     super.activateListeners(html);
     
-    html.find(".refresh-button")
+    html.find(".apply-button")
       .on("click", this._onClickApplyButton.bind(this));
         
     html.find(".remove-actor")

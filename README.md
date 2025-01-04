@@ -55,6 +55,14 @@ Emotive HUD is a [Foundry VTT](https://foundryvtt.com) module that brings storie
 - Portrait changes only affect the Emotive HUD display and `/say` messages - they do not modify the actor's default portrait in the character sheet
 - The module uses WebSocket communication to sync portrait changes across clients
 
+## Development Setup
+
+Install FoundryVTT locally, then create an `.env` file in the project root directory with your desired Foundry module path like this:
+
+`FOUNDRY_VTT_PATH="path/to/your/foundry/data/modules/emotive-hud"`
+
+This will allow you to use `npm run dev` to have a hot reloading development enviroment.
+
 ## Acknowledgments
 Used Code Snippets From
 - https://github.com/MemelyPepeartly/pf2e-typescript-content-pack-template
