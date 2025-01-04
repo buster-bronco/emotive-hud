@@ -92,17 +92,14 @@ export const getActorConfigs = (): Record<string, ActorConfig> => {
 
 export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
   const configs = getActorConfigs();
-  if (!configs[uuid]) return;
 
   try {
     // Only GM can browse files
     if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
 
-    // If config doesn't exist, create it with just the UUID
+    // Initialize the config if it doesn't exist
     if (!configs[uuid]) {
       configs[uuid] = { uuid };
-      await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-      return;
     }
 
     // If folderPath is undefined or empty, keep existing config unchanged
@@ -112,19 +109,35 @@ export const updateActorConfig = async (uuid: string, folderPath: string | undef
 
     // Browsing the folder to get image files
     const browser = await FilePicker.browse("data", folderPath);
-    const portraits = browser.files.filter(file => 
-      file.toLowerCase().endsWith('.jpg') || 
-      file.toLowerCase().endsWith('.jpeg') || 
-      file.toLowerCase().endsWith('.png') || 
-      file.toLowerCase().endsWith('.webp')
-    );
+    console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
+    
+    const portraits = browser.files.filter(file => {
+      const ext = file.toLowerCase();
+      return ext.endsWith('.jpg') || 
+             ext.endsWith('.jpeg') || 
+             ext.endsWith('.png') || 
+             ext.endsWith('.webp');
+    });
 
-    // Update the actor's config: portrait folder and cached portraits
+    console.log(CONSTANTS.DEBUG_PREFIX, 'Caching following portraits:', portraits);
+
+    // Create updated config
     const updatedConfig = {
-      ...configs[uuid], // Keep existing config
-      portraitFolder: folderPath, // Update folder path
-      cachedPortraits: portraits // Cache the new portraits
+      uuid,
+      portraitFolder: folderPath,
+      cachedPortraits: portraits
     };
+
+    // Update the configs object
+    configs[uuid] = updatedConfig;
+    
+    // Save the updated config back to the settings
+    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+    console.log(CONSTANTS.DEBUG_PREFIX, 'Actor config updated:', {
+      uuid,
+      config: updatedConfig,
+      allConfigs: configs
+    });
 
     configs[uuid] = updatedConfig;
     
