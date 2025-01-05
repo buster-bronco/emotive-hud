@@ -78,7 +78,7 @@ https://github.com/user-attachments/assets/d8bf1931-917c-47c9-bba0-002f469a6e60
 
 ## Technical Notes
 
-- Portrait changes only affect the display within the Emotive HUD and /say//do messages. They do not modify the actor's default portrait in the character sheet.
+- Portrait changes only affect the display within the Emotive HUD and `/say` and `/do` messages. They do not modify the actor's default portrait in the character sheet.
 - This module uses WebSocket communication to synchronize portrait changes across clients in real-time
 
 ## Development Setup
