@@ -15,7 +15,6 @@ https://github.com/user-attachments/assets/79a3ee97-8370-482d-a1c0-9a730b339bc2
 
 - Use `/say` to speak in character with your current portrait
 - Use `/do` to describe actions with your current portrait
-- Messages will include both your text and current portrait
 - Compatible with [Chat Commander](https://foundryvtt.com/packages/_chatcommands/)
 
 ### Flexible Layout
@@ -31,14 +30,27 @@ https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
 
 - Supported image formats: JPG, JPEG, PNG, WEBP
 - All portraits for a character should be in the same folder
-- Consistent image dimensions, ideally square portraits, recommended for best results
+- Consistent image dimensions recommended for best results
 
 ### Setting Up the HUD
 
-- GMs can customize who shows up on the hud at any time, Click the menu icon (≡) in the Emotive HUD
-- Drag actors into the configuration window
-- Select a folder containing portrait images for each actor
-- Click Apply to save changes
+1. GMs can customize who shows up on the HUD at any time:
+   - Click the menu icon (≡) in the Emotive HUD
+   - Drag actors into the configuration window
+   - Arrange actors in desired order using drag handles
+
+2. Adding Character Portraits:
+   **Option 1: Select Existing Folder**
+   - Click the folder icon next to an actor
+   - Navigate to and select a folder containing portrait images
+   - Click Apply to save changes
+
+   **Option 2: Batch Import Portraits**
+   - Click the upload icon next to an actor to upload files directly
+   - If no folder has specified, images will be automatically organized into: `/emotive-hud-portraits/[actor-name]/`
+   - Existing files with the same names will be replaced
+
+3. Click Apply to save changes. The HUD will update to show the selected actors with their portraits and cache them for player use.
 
 ### Basic Controls
 
@@ -49,6 +61,7 @@ https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
 - **Actor Limit (World)**: Maximum number of actors that can be added to the HUD (default: 15)
 - **Grid Columns (Local)**: Number of columns in the portrait grid (default: 3)
 - **HUD Layout (Local)**: Choose between `Embedded in Chat` or `Floating Window`
+- **Portrait Height Ratio (World)**: Controls the height-to-width ratio of actor portraits. A ratio of 1 creates square portraits, while 2 makes portraits twice as tall as they are wide.
 
 ## Permissions
 

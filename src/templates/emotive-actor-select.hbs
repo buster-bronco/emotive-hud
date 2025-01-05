@@ -12,7 +12,10 @@
               <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}" title="Open {{this.name}}'s sheet"/>
               <span class="actor-name">{{this.name}}</span>
               <div class="portrait-controls">
-                <button class="select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Portrait Folder">
+                <button class="portrait-control-btn import-portraits" data-uuid="{{this.uuid}}" title="Import Portrait Files">
+                  <i class="fas fa-file-upload"></i>
+                </button>
+                <button class="portrait-control-btn select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">
                   <i class="fas fa-folder"></i>
                 </button>
                 <span class="portrait-path">{{this.portraitFolder}}</span>

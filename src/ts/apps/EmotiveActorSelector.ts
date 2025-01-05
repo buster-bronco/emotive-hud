@@ -123,6 +123,8 @@ export default class EmotiveActorSelector extends Application {
   
     const fp = new FilePicker({
       type: "folder",
+      allowUpload: true,
+      displayMode: "images",
       callback: async (path: string) => {
         try {
           actor.portraitFolder = path;
@@ -217,6 +219,9 @@ export default class EmotiveActorSelector extends Application {
 
     html.find(".select-portrait-folder")
       .on("click", this._onSelectPortraitFolder.bind(this));
+
+    html.find
+      (".import-portraits").on("click", this._onImportPortraits.bind(this));
       
     html.find(".actor-portrait.clickable")
       .on("click", this._onClickActorPortrait.bind(this));
@@ -238,6 +243,78 @@ export default class EmotiveActorSelector extends Application {
       .off("mouseup.actor-selector");
     
     return super.close(options);
+  }
+
+  private async _onImportPortraits(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    const uuid = $(event.currentTarget).data('uuid');
+    const actor = this.selectedActors.find(a => a.uuid === uuid);
+    if (!actor) return;
+  
+    // Get actor details
+    const gameActor = await fromUuid(actor.uuid) as Actor;
+    if (!gameActor) return;
+  
+    // Determine target folder path
+    let targetFolder = actor.portraitFolder;
+    if (!targetFolder) {
+      const baseFolder = 'emotive-hud-portraits';
+      const actorFolder = gameActor.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_actor';
+      
+      // Create base folder if it doesn't exist
+      try {
+        await FilePicker.createDirectory('data', baseFolder);
+      } catch (err) {
+        console.log(CONSTANTS.DEBUG_PREFIX, err);
+      }
+  
+      // Create actor folder if it doesn't exist
+      targetFolder = `${baseFolder}/${actorFolder}`;
+      try {
+        await FilePicker.createDirectory('data', targetFolder);
+      } catch (err) {
+        console.log(CONSTANTS.DEBUG_PREFIX, err);
+      }
+  
+      // Update the actor's folder path
+      actor.portraitFolder = targetFolder;
+    }
+  
+    // Create file input and handle upload
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.jpg,.jpeg,.png,.webp';
+    
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (!target.files?.length) return;
+      
+      try {
+        // Upload each file
+        for (const file of Array.from(target.files)) {
+          const response = await fetch(URL.createObjectURL(file));
+          const blob = await response.blob();
+          
+          // Create file in Foundry VTT
+          await FilePicker.upload('data', targetFolder, new File([blob], file.name));
+          console.log(`${CONSTANTS.DEBUG_PREFIX} Uploaded:`, file.name);
+        }
+  
+        // Update the actor config with new folder
+        await updateActorConfig(actor.uuid, targetFolder);
+        
+        ui.notifications?.info(`Successfully imported ${target.files.length} portraits`);
+        
+        // Refresh the display
+        this.render(false);
+      } catch (error) {
+        console.error(`${CONSTANTS.DEBUG_PREFIX} Error uploading files:`, error);
+        ui.notifications?.error("Failed to upload one or more portraits");
+      }
+    };
+  
+    input.click();
   }
 
   private _onDragHandleMouseDown(event: JQuery.MouseDownEvent): void {
