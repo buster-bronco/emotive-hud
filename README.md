@@ -13,7 +13,8 @@ https://github.com/user-attachments/assets/79a3ee97-8370-482d-a1c0-9a730b339bc2
 
 ### Chat Integration
 
-- Use `/say [message]` to send a chat message with your current expression
+- Use `/say` to speak in character with your current portrait
+- Use `/do` to describe actions with your current portrait
 - Messages will include both your text and current portrait
 - Compatible with [Chat Commander](https://foundryvtt.com/packages/_chatcommands/)
 
@@ -56,7 +57,7 @@ https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
 
 ## Technical Notes
 
-- Portrait changes only affect the Emotive HUD display and `/say` messages - they do not modify the actor's default portrait in the character sheet
+- Portrait changes only affect the Emotive HUD display and `/say`/`/do` messages - they do not modify the actor's default portrait in the character sheet
 - The module uses WebSocket communication to sync portrait changes across clients
 
 ## Development Setup

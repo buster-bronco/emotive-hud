@@ -5,11 +5,20 @@ import { getGame } from "./utils";
 export function initializeChatCommands(): void {
   // Register native Foundry chat command
   Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
-    const command = CONSTANTS.CHAT_COMMAND;
+    const command = CONSTANTS.CHAT_COMMAND.SAY;
     
     if (!message.startsWith(command)) return true;
     
-    handleEmotiveChatMessage(message.slice(command.length).trim());
+    handleEmotiveChatMessage(message.slice(command.length).trim(), false);
+    return false;
+  });
+
+  Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
+    const command = CONSTANTS.CHAT_COMMAND.DO;
+    
+    if (!message.startsWith(command)) return true;
+    
+    handleEmotiveChatMessage(message.slice(command.length).trim(), true);
     return false;
   });
 
@@ -20,15 +29,22 @@ export function initializeChatCommands(): void {
     if (!game.chatCommands) return;
 
     game.chatCommands.register({
-      name: CONSTANTS.CHAT_COMMAND,
+      name: CONSTANTS.CHAT_COMMAND.SAY,
       module: CONSTANTS.MODULE_ID,
-      description: "Send a message with your character's current emotive portrait",
+      description: "Say something with your character's current emotive portrait",
+      icon: "<i class='fas fa-theater-masks'></i>",
+    });
+
+    game.chatCommands.register({
+      name: CONSTANTS.CHAT_COMMAND.DO,
+      module: CONSTANTS.MODULE_ID,
+      description: "Do something with your character's current emotive portrait",
       icon: "<i class='fas fa-theater-masks'></i>",
     });
   });
 }
 
-async function handleEmotiveChatMessage(messageText: string): Promise<void> {
+async function handleEmotiveChatMessage(messageText: string, italicize? : boolean): Promise<void> {
   const game = getGame();
   // First try user's assigned character
   let speaker: StoredDocument<Actor> | undefined = game.user?.character;
@@ -63,13 +79,18 @@ async function handleEmotiveChatMessage(messageText: string): Promise<void> {
     {
       portrait,
       name: speaker.name,
-      message: messageText
+      message: messageText,
+      italicize: italicize ? italicize : false,
     }
   );
 
   // Create chat message data
-  const chatData: any = {
+  const chatData = {
+    type: CONST.CHAT_MESSAGE_TYPES.IC,
     user: game.user?.id,
+    speaker: {
+      alias: speaker.name
+    },
     content: content,
     flags: {
       [CONSTANTS.MODULE_ID]: {

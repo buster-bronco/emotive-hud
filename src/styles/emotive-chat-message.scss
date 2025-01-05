@@ -19,12 +19,19 @@ $portrait-size: 96px;
       padding: 8px;
       background: rgba(0, 0, 0, 0.05);
       border-radius: 4px;
+      font-weight: bold;
+      display: flex;
+      align-items: flex-start;
+
+      &.emotive-italics {
+        font-style: italic;
+      }
       
       .content {
         font-size: var(--font-size-14);
         line-height: 1.4;
         word-break: break-word; 
-        white-space: normal; 
+        white-space: pre-wrap; 
       }
     }
   }

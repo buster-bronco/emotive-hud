@@ -26,7 +26,10 @@ export const CONSTANTS = {
   /**
    * Chat command used for the emotive chat message functionality
    */
-  CHAT_COMMAND: "/say"
+  CHAT_COMMAND: {
+    SAY: "/say",
+    DO: "/do",
+  }
 } as const;
 
 export default CONSTANTS;
