@@ -16,6 +16,7 @@ $portrait-hover-border: var(--color-border-highlight);
   height: $control-size;
   padding: 0;
   color: var(--color-text-light-highlight);
+  background: $default-bg;
   cursor: pointer;
   @include center-flex;
 }
@@ -95,6 +96,12 @@ section.chat-sidebar.directory.flexcol.active {
 
       .control-button {
         @include control-button-base;
+        border: none;
+        background: none;
+        
+        &:first-child {
+          border-left: none; // Remove left border from first button
+        }
 
         i {
           font-size: 8px;
@@ -158,8 +165,6 @@ section.chat-sidebar.directory.flexcol.active {
 
       .control-button {
         @include control-button-base;
-        background: $default-bg;
-        border: $default-border;
         border-radius: 3px;
 
         &:hover {
