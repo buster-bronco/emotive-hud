@@ -1,17 +1,19 @@
 # Emotive HUD
 
-Emotive HUD is a [Foundry VTT](https://foundryvtt.com) module that brings stories to life with a dynamic character portrait interface. Lets players express their characters' emotions and reactions in real-time.
+**Emotive HUD** is a [Foundry VTT](https://foundryvtt.com) module that brings characters to life with a dynamic portrait interface. This module lets players express their characters' emotions and reactions in real-time.
 
 ## Features
 
-https://github.com/user-attachments/assets/79a3ee97-8370-482d-a1c0-9a730b339bc2
-
 ### Dynamic Portrait HUD
 
-- Right-click on a character portrait in the HUD to open the expression picker
-- Easily switch between different character portraits during gameplay
+https://github.com/user-attachments/assets/81274e72-7882-483e-97a0-7e796b3f81ca
+
+- **Right-click on a character portrait in the HUD to open the expression picker**
+- Effortlessly switch between character portraits during gameplay for seamless interaction
 
 ### Chat Integration
+
+https://github.com/user-attachments/assets/8b6c4740-c32d-4d1b-b454-55488c14dd9e
 
 - Use `/say` to speak in character with your current portrait
 - Use `/do` to describe actions with your current portrait
@@ -19,42 +21,48 @@ https://github.com/user-attachments/assets/79a3ee97-8370-482d-a1c0-9a730b339bc2
 
 ### Flexible Layout
 
-https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
+https://github.com/user-attachments/assets/d8bf1931-917c-47c9-bba0-002f469a6e60
 
-- Each player can customize their view with adjustable grid columns and choice of embedded chat or floating window display to match their screen setup
-- Minimizable interface 
+- Each player can customize their view with adjustable grid columns and portrait width settings
+- Players may also embed the HUD at the top of the chat window
+- Minimizable interface
+- DMs can set the portrait aspect ratio for the portraits used in game
 
 ## Configuration
 
 ### Portrait Requirements
 
-- Supported image formats: JPG, JPEG, PNG, WEBP
+- Supported image formats: `JPG`, `JPEG`, `PNG`, `WEBP`
 - All portraits for a character should be in the same folder
-- Consistent image dimensions recommended for best results
+- Consistent image dimensions are recommended for best results
 
 ### Setting Up the HUD
 
-1. GMs can customize who shows up on the HUD at any time:
+1. Select Emotive HUD Actors
+
    - Click the menu icon (≡) in the Emotive HUD
-   - Drag actors into the configuration window
-   - Arrange actors in desired order using drag handles
+   - Drag an actor from the 'Actors' tab into the configuration window
+   - Arrange actors in the desired order using the drag handles
 
 2. Adding Character Portraits:
-   **Option 1: Select Existing Folder**
-   - Click the folder icon next to an actor
-   - Navigate to and select a folder containing portrait images
-   - Click Apply to save changes
 
-   **Option 2: Batch Import Portraits**
+   **Option 1: Upload Directly**
    - Click the upload icon next to an actor to upload files directly
-   - If no folder has specified, images will be automatically organized into: `/emotive-hud-portraits/[actor-name]/`
+   - If no folder is specified, images will be automatically organized into `/emotive-hud-portraits/[actor-name]/`
    - Existing files with the same names will be replaced
 
-3. Click Apply to save changes. The HUD will update to show the selected actors with their portraits and cache them for player use.
+   **Option 2: Select Existing Folder**
+   - Click the folder icon next to an actor
+   - Navigate to and select a folder containing portrait images
+
+3. Click `Apply` to save changes
+
+   - The HUD will update to show the selected actors with their portraits and cache them for player use.
 
 ### Basic Controls
 
 - **Toggle HUD**: Click the chevron icon (▼/▲) to minimize/maximize the HUD
+- **Emotive Portrait Picker**: Right-click on a portrait for a character you own to set their portrait
 - **Reset Portrait**: Click "Reset to Default" in the expression picker to return to the default portrait
 
 ### Module Settings
@@ -70,8 +78,8 @@ https://github.com/user-attachments/assets/8f14e97a-a714-47e9-a816-3315db785361
 
 ## Technical Notes
 
-- Portrait changes only affect the Emotive HUD display and `/say`/`/do` messages - they do not modify the actor's default portrait in the character sheet
-- The module uses WebSocket communication to sync portrait changes across clients
+- Portrait changes only affect the display within the Emotive HUD and /say//do messages. They do not modify the actor's default portrait in the character sheet.
+- This module uses WebSocket communication to synchronize portrait changes across clients in real-time
 
 ## Development Setup
 
@@ -79,7 +87,7 @@ Install FoundryVTT locally, then create an `.env` file in the project root direc
 
 `FOUNDRY_VTT_PATH="path/to/your/foundry/data/modules/emotive-hud"`
 
-This will allow you to use `npm run dev` to have a hot reloading development enviroment.
+This will allow you to use `npm run dev` to have a hot reloading development environment
 
 ## Acknowledgments
 Used Code Snippets From
