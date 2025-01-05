@@ -40,12 +40,13 @@ export const registerSettings = function() {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, value);
     }
   });
+
+  // HACK: the `type` on these settings use type assertion because the latest stable foundry-vtt-types is not up to date with v12
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorLimit', {
     name: "Actor Limit",
     hint: "Maximum number of actors that can be displayed on the Emotive HUD. Warning: Setting this above 9 may make the HUD unwieldy.",
     scope: "world",
     config: true,
-    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
     type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 15, step: 1}),
     default: 9,
     onChange: value => {
@@ -58,7 +59,6 @@ export const registerSettings = function() {
     hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
     scope: "client",
     config: true,
-    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
     type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 6, step: 1}),
     default: 3,
     onChange: value => {
@@ -71,7 +71,6 @@ export const registerSettings = function() {
     hint: "Choose whether to display the HUD embedded in chat or as a floating window",
     scope: "client",
     config: true,
-    // HACK: type assertion is used here because the latest stable foundry-vtt-types is not up to date with v12
     type: new (foundry as any).data.fields.StringField({
       choices: {
         "embedded": "Embedded in Chat",
@@ -81,6 +80,19 @@ export const registerSettings = function() {
     default: "floating",
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
+    }
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'portraitRatio', {
+    name: "Portrait Height Ratio",
+    hint: "Set the height ratio for portraits (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
+    scope: "world",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({nullable: false, min: 1, max: 2, step: 0.1}),
+    default: 1,
+    onChange: () => {
+      // Will require a reload to take effect
+      ui.notifications?.info("Portrait ratio change will take effect after reload");
     }
   });
 };
@@ -180,6 +192,10 @@ export const getGridColumns = (): number => {
 export const getHudLayout = (): string => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudLayout') as string;
 };
+
+export const getPortraitRatio = () : number => {
+  return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
+}
 
 // Get cached portraits for an actor
 export const getActorPortraits = (uuid: string): string[] => {

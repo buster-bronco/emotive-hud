@@ -2,7 +2,7 @@
     {{#unless isMinimized}}
         <div class="portrait-container" style="--portrait-count: {{portraits.length}}; --grid-columns: {{columns}}">
             {{#each portraits}}
-            <div class="portrait" data-actor-id="{{actorId}}">
+            <div class="portrait" data-actor-id="{{actorId}}" style="--portrait-ratio: {{emotivePortraitRatio}}">
                 <img src="{{imgSrc}}" alt="{{name}}">
             </div>
             {{/each}}

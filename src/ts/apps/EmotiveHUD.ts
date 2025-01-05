@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, getActorLimit, getGridColumns, getHudLayout } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, getActorLimit, getGridColumns, getHudLayout, getPortraitRatio } from "../settings";
 import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
@@ -109,6 +109,7 @@ export default class EmotiveHUD extends Application {
 
   private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
     const templateData = this.getData();
+    console.log("YUGI", templateData)
     const content = await renderTemplate(this.template!, templateData);
     
     // Create or get the floating container
@@ -170,6 +171,7 @@ export default class EmotiveHUD extends Application {
     const actors = this.getActorsToShow();
     const isMinimized = getIsMinimized();
     const columns = getGridColumns();
+    const emotivePortraitRatio = getPortraitRatio();
     
     return {
       isGM: isCurrentUserGM(),
@@ -183,12 +185,15 @@ export default class EmotiveHUD extends Application {
             actorId: actor.id ?? "",
             imgSrc: actor.img ?? "",
             name: actor.name ?? "",
+            emotivePortraitRatio,
+
           };
         }
         return {
           actorId: actor.id ?? "",
           imgSrc,
           name: actor.name ?? "",
+          emotivePortraitRatio,
         };
       })
     };

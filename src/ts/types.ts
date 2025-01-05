@@ -21,6 +21,7 @@ export interface PortraitData {
   imgSrc: string;
   name: string;
   isSelected?: boolean;
+  emotivePortraitRatio: number; // needs to be set here because of CSS witchcraft
 }
 
 export interface PortraitUpdateData {
