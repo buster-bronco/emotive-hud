@@ -19,6 +19,16 @@ $portrait-hover-border: var(--color-border-highlight);
   background: $default-bg;
   cursor: pointer;
   @include center-flex;
+  line-height: 1;
+
+  i.fas {
+    @include center-flex;
+    width: 100%;
+    height: 100%;
+    line-height: 0;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 @mixin portrait-container-base {
