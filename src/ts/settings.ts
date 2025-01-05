@@ -1,4 +1,5 @@
 import { CONSTANTS } from './constants';
+import { emitHUDRefresh } from './sockets';
 import { ActorConfig, HUDState } from './types';
 import { getGame } from './utils';
 
@@ -62,7 +63,7 @@ export const registerSettings = function() {
     type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 6, step: 1}),
     default: 3,
     onChange: value => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, value);
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
 
@@ -90,9 +91,9 @@ export const registerSettings = function() {
     config: true,
     type: new (foundry as any).data.fields.NumberField({nullable: false, min: 1, max: 2, step: 0.1}),
     default: 1,
-    onChange: () => {
-      // Will require a reload to take effect
-      ui.notifications?.info("Portrait ratio change will take effect after reload");
+    onChange: value => {
+      emitHUDRefresh(); // referesh portrait ratio for players too
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
 };

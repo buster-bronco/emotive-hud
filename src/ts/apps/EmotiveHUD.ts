@@ -14,7 +14,6 @@ export default class EmotiveHUD extends Application {
     
     // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
-    Hooks.on(`${CONSTANTS.MODULE_ID}.gridColumnsChanged`, () => this.debouncedRender(true));
     Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.debouncedRender(true));
     
   }
