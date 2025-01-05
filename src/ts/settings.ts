@@ -84,6 +84,18 @@ export const registerSettings = function() {
     }
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', {
+    name: "Floating Portrait Width",
+    hint: "The Portrait Width when the HUD is in Floating Mode",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 100, max: 200, step: 25}),
+    default: 125,
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
+    }
+  });
+
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'portraitRatio', {
     name: "Portrait Height Ratio",
     hint: "Set the height ratio for portraits (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
@@ -198,8 +210,12 @@ export const getPortraitRatio = () : number => {
   return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
 }
 
+export const getFloatingPortraitWidth = () : number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
+}
+
 // Get cached portraits for an actor
 export const getActorPortraits = (uuid: string): string[] => {
-  const configs = getActorConfigs();
+  const configs = getActorConfigs(); 
   return configs[uuid]?.cachedPortraits ?? [];
 };

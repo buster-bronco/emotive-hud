@@ -14,6 +14,7 @@ export interface EmotiveHUDData {
   columns: number;
   isMinimized: boolean;
   portraits: PortraitData[];
+  floatingPortraitWidth: number;
 }
 
 export interface PortraitData {

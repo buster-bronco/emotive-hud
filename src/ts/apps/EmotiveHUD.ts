@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getHUDState, getActorLimit, getGridColumns, getHudLayout, getPortraitRatio } from "../settings";
+import { getIsMinimized, setIsMinimized, getHUDState, getActorLimit, getGridColumns, getHudLayout, getPortraitRatio, getFloatingPortraitWidth } from "../settings";
 import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
@@ -171,11 +171,13 @@ export default class EmotiveHUD extends Application {
     const isMinimized = getIsMinimized();
     const columns = getGridColumns();
     const emotivePortraitRatio = getPortraitRatio();
+    const floatingPortraitWidth = getFloatingPortraitWidth();
     
     return {
       isGM: isCurrentUserGM(),
       isMinimized,
       columns,
+      floatingPortraitWidth,
       portraits: actors.map(actor => {
         const imgSrc = this.getActorPortrait(actor);
         if (!imgSrc) {
