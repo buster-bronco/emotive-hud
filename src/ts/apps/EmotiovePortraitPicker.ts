@@ -63,22 +63,45 @@ export default class EmotivePortraitPicker extends Application {
     const position = this._anchor.getBoundingClientRect();
     const pickerHeight = this.element.height() || 0;
     const pickerWidth = this.element.width() || 0;
-  
-    // Check if we're in embedded mode
+    const padding = 5; // Space between picker and anchor
+    
+    // get initial position
+    let top: number;
+    let left = Math.max(padding, Math.min(
+      window.innerWidth - pickerWidth - padding,
+      position.left + (position.width / 2) - (pickerWidth / 2)
+    ));
+    
     const isEmbedded = getHudLayout() === 'embedded';
-  
+    
     if (isEmbedded) {
-      // Position below with bottom property
-      this.element.css({
-        bottom: `${window.innerHeight - position.bottom - pickerHeight - 5}px`,
-        left: `${position.left + (position.width / 2) - (pickerWidth / 2)}px`
-      });
+      // For embedded mode, try to position above first
+      if (position.top > pickerHeight + padding) {
+        // Enough space above
+        top = position.top - pickerHeight - padding;
+        this.element.css({ top: `${top}px`, left: `${left}px` });
+      } else {
+        // Position below if not enough space above
+        top = position.bottom + padding;
+        if (top + pickerHeight > window.innerHeight) {
+          top = window.innerHeight - pickerHeight - padding;
+        }
+        this.element.css({ top: `${top}px`, left: `${left}px` });
+      }
     } else {
-      // Original floating behavior using top
-      this.element.css({
-        top: `${position.top - pickerHeight - 5}px`,
-        left: `${position.left + (position.width / 2) - (pickerWidth / 2)}px`
-      });
+      // For floating mode, always try above first
+      if (position.top > pickerHeight + padding) {
+        // Enough space above
+        top = position.top - pickerHeight - padding;
+        this.element.css({ top: `${top}px`, left: `${left}px` });
+      } else {
+        // Position below if not enough space above
+        top = position.bottom + padding;
+        if (top + pickerHeight > window.innerHeight) {
+          top = window.innerHeight - pickerHeight - padding;
+        }
+        this.element.css({ top: `${top}px`, left: `${left}px` });
+      }
     }
   }
 

@@ -78,7 +78,7 @@ export const registerSettings = function() {
         "floating": "Floating Window"
       },
     }),
-    default: "embedded",
+    default: "floating",
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }

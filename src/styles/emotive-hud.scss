@@ -1,11 +1,17 @@
+// Variables
+$default-border: 1px solid var(--color-border-dark);
+$default-bg: rgba(0, 0, 0, 0.5);
+$control-size: 24px;
+$portrait-hover-border: var(--color-border-highlight);
+
 // Common portrait styles
 .portrait-container {
   display: grid;
-  background: rgba(30, 0, 0, 0.7);
-  border: 1px solid var(--color-border-dark);
+  background: $default-bg;
+  border: $default-border;
   
   .portrait {
-    border: 1px solid var(--color-border-dark);
+    border: $default-border;
     overflow: hidden;
     
     &.flash {
@@ -56,20 +62,20 @@ section.chat-sidebar.directory.flexcol.active {
     
     .hud-controls {
       position: absolute;
-      bottom: -24px; /* Extend below the container */
+      bottom: -$control-size; /* Extend below the container */
       left: 50%; /* Center horizontally */
       transform: translateX(-50%); /* Center horizontally */
       display: flex;
       flex-direction: row;
       gap: 1px;
-      background: rgba(30, 0, 0, 0.7);
-      border: 1px solid var(--color-border-dark);
+      background: $default-bg;
+      border: $default-border;
       border-radius: 0 0 8px 8px;
       padding: 1px 4px;
       
       .control-button {
-        width: 24px;
-        height: 24px;
+        width: $control-size;
+        height: $control-size;
         padding: 0;
         background: transparent;
         border: none;
@@ -119,11 +125,11 @@ section.chat-sidebar.directory.flexcol.active {
       gap: 8px;
       padding: 8px;
       border-radius: 3px;
-      --grid-columns: 3;
-      grid-template-columns: repeat(var(--grid-columns), 125px);
+      grid-template-columns: repeat(var(--portrait-count), 125px);
+      width: fit-content;
       
       .portrait:hover {
-        border-color: var(--color-border-highlight);
+        border-color: $portrait-hover-border;
       }
     }
     
@@ -136,11 +142,11 @@ section.chat-sidebar.directory.flexcol.active {
       align-self: flex-end;
       
       .control-button {
-        width: 24px;
-        height: 24px;
+        width: $control-size;
+        height: $control-size;
         padding: 0;
-        background: rgba(30, 0, 0, 0.7);
-        border: 1px solid var(--color-border-dark);
+        background: $default-bg;
+        border: $default-border;
         border-radius: 3px;
         color: var(--color-text-light-highlight);
         cursor: pointer;
@@ -149,7 +155,7 @@ section.chat-sidebar.directory.flexcol.active {
         justify-content: center;
         
         &:hover {
-          border-color: var(--color-border-highlight);
+          border-color: $portrait-hover-border;
         }
         
         i {

@@ -10,7 +10,7 @@
 }
 
 .emotion-picker-menu {
-  $item-size: 48px;
+  $item-size: 75px;
   $gap-size: 4px;
   $visible-rows: 3;
   $grid-height: ($item-size * $visible-rows) + ($gap-size * ($visible-rows - 1));
