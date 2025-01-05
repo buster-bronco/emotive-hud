@@ -125,7 +125,7 @@ section.chat-sidebar.directory.flexcol.active {
       gap: 8px;
       padding: 8px;
       border-radius: 3px;
-      grid-template-columns: repeat(var(--portrait-count), 125px);
+      grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), 150px);
       width: fit-content;
       
       .portrait:hover {
