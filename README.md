@@ -2,6 +2,9 @@
 
 **Emotive HUD** is a [Foundry VTT](https://foundryvtt.com) module that brings characters to life with a dynamic portrait interface. This module lets players express their characters' emotions and reactions in real-time.
 
+## v13 Update
+- Now working on v13 version upgrade.
+
 ## Features
 
 ### Dynamic Portrait HUD
