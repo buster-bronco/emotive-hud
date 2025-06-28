@@ -284,7 +284,7 @@ export default class EmotiveActorSelector extends Application {
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = '.jpg,.jpeg,.png,.webp';
+    input.accept = '.jpg,.jpeg,.png,.webp,.gif';
     
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;

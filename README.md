@@ -35,7 +35,7 @@ https://github.com/user-attachments/assets/d8bf1931-917c-47c9-bba0-002f469a6e60
 
 ### Portrait Requirements
 
-- Supported image formats: `JPG`, `JPEG`, `PNG`, `WEBP`
+- Supported image formats: `JPG`, `JPEG`, `PNG`, `WEBP`, `GIF`
 - All portraits for a character should be in the same folder
 - Consistent image dimensions are recommended for best results
 
