@@ -4,7 +4,6 @@ import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
-// Streamlined positioning constants
 const POSITIONING = {
   MARGIN_BASE: 16,
   MARGIN_COLLAPSED: 64,
@@ -19,11 +18,18 @@ export default class EmotiveHUD extends Application {
   private hudElement: JQuery | null = null;
   private lastSidebarWidth: number = 0;
   private isUpdatingPosition: boolean = false;
+  private minimizeInProgress: boolean = false;
 
   constructor(options = {}) {
     super(options);
     
-    Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
+    Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => {
+      if (this.minimizeInProgress) {
+        this.handleMinimizeStateChange();
+      } else {
+        this.render();
+      }
+    });
     Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.debouncedRender(true));
   }
 
@@ -31,6 +37,29 @@ export default class EmotiveHUD extends Application {
     foundry.utils.debounce(() => {
       this.render(force);
     }, 100)();
+  }
+
+  private handleMinimizeStateChange(): void {
+    if (!this.hudElement) {
+      this.minimizeInProgress = false;
+      return;
+    }
+
+    const isMinimized = getIsMinimized();
+    const portraitContainer = this.hudElement.find('.portrait-container');
+    const toggleIcon = this.hudElement.find('.toggle-visibility i');
+
+    if (isMinimized) {
+      portraitContainer.hide();
+      toggleIcon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+      this.hudElement.find('.toggle-visibility').attr('title', 'Show Emotive HUD');
+    } else {
+      portraitContainer.show();
+      toggleIcon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+      this.hudElement.find('.toggle-visibility').attr('title', 'Hide Emotive HUD');
+    }
+
+    this.minimizeInProgress = false;
   }
 
   get isFloating(): boolean {
@@ -51,12 +80,10 @@ export default class EmotiveHUD extends Application {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
-    // Cache initial width
     this.lastSidebarWidth = sidebar.getBoundingClientRect().width;
 
-    // Mutation observer for class changes (collapsed/expanded)
     this.sidebarObserver = new MutationObserver(() => {
-      if (!this.isUpdatingPosition) {
+      if (!this.isUpdatingPosition && !this.minimizeInProgress) {
         this.checkAndUpdatePosition();
       }
     });
@@ -68,10 +95,9 @@ export default class EmotiveHUD extends Application {
       subtree: false
     });
 
-    // Resize observer for actual width changes
     if ('ResizeObserver' in window) {
       this.resizeObserver = new ResizeObserver(() => {
-        if (!this.isUpdatingPosition) {
+        if (!this.isUpdatingPosition && !this.minimizeInProgress) {
           this.checkAndUpdatePosition();
         }
       });
@@ -92,14 +118,13 @@ export default class EmotiveHUD extends Application {
   }
 
   private checkAndUpdatePosition(): void {
-    if (!this.isFloating || !this.hudElement) return;
+    if (!this.isFloating || !this.hudElement || this.minimizeInProgress) return;
 
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
     const currentWidth = sidebar.getBoundingClientRect().width;
     
-    // Only update if width actually changed
     if (Math.abs(currentWidth - this.lastSidebarWidth) > 1) {
       this.lastSidebarWidth = currentWidth;
       this.updateHUDPositionImmediate();
@@ -113,32 +138,28 @@ export default class EmotiveHUD extends Application {
     const sidebarRect = sidebar.getBoundingClientRect();
     const isCollapsed = sidebarRect.width < POSITIONING.SIDEBAR_COLLAPSED_THRESHOLD;
     
-    // Calculate position based on sidebar state
     if (isCollapsed) {
       return POSITIONING.MARGIN_COLLAPSED;
     } else {
-      // When expanded, position relative to sidebar's left edge
       return window.innerWidth - sidebarRect.left + POSITIONING.MARGIN_BASE;
     }
   }
 
   private updateHUDPositionImmediate(): void {
-    if (!this.isFloating || !this.hudElement || this.isUpdatingPosition) return;
+    if (!this.isFloating || !this.hudElement || this.isUpdatingPosition || this.minimizeInProgress) return;
     
     this.isUpdatingPosition = true;
     
     const rightOffset = this.calculatePosition();
     
-    // Apply position immediately
     this.hudElement.css({
       'right': `${rightOffset}px`,
       'top': `${POSITIONING.TOP_OFFSET}px`,
       'transition': 'none'
     });
     
-    // Re-enable smooth transitions after immediate positioning
     setTimeout(() => {
-      if (this.hudElement) {
+      if (this.hudElement && !this.minimizeInProgress) {
         this.hudElement.css('transition', 'right 0.2s ease-out');
       }
       this.isUpdatingPosition = false;
@@ -146,8 +167,13 @@ export default class EmotiveHUD extends Application {
   }
 
   override setPosition(): void {
-    if (!this.isFloating) return;
-    this.updateHUDPositionImmediate();
+    if (!this.isFloating || this.minimizeInProgress) return;
+    
+    setTimeout(() => {
+      if (!this.minimizeInProgress) {
+        this.updateHUDPositionImmediate();
+      }
+    }, 10);
   }
 
   override async close(options?: Application.CloseOptions): Promise<void> {
@@ -172,6 +198,11 @@ export default class EmotiveHUD extends Application {
   }
 
   override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
+    // Don't cleanup and re-render if we're just handling a minimize operation
+    if (this.minimizeInProgress) {
+      return this;
+    }
+
     this.cleanup();
 
     if (this.isFloating) {
@@ -197,7 +228,6 @@ export default class EmotiveHUD extends Application {
     
     this.hudElement = $(element);
     
-    // Set initial position and initialize observers
     this.setPosition();
     this.initializeObservers();
     
@@ -209,7 +239,6 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // V13 compatible chat targeting
     const chatColumn = document.querySelector('#ui-right-column-1 #chat') || document.getElementById('chat');
     if (!chatColumn) {
       console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find chat element in v13 structure`);
@@ -340,9 +369,14 @@ export default class EmotiveHUD extends Application {
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
+    
+    // Set flag to indicate minimize is in progress
+    this.minimizeInProgress = true;
+    
     const currentState = getIsMinimized();
     await setIsMinimized(!currentState);
-    this.render();
+    
+    // The minimizeInProgress flag will be cleared in handleMinimizeStateChange()
   }
 
   private getActorPortrait(actor: Actor): string {
