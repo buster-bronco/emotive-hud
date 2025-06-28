@@ -89,7 +89,6 @@ $portrait-hover-border: var(--color-border-highlight);
       .portrait-container {
         gap: 1px;
         grid-template-columns: repeat(var(--grid-columns), 1fr);
-        border-bottom: none;
         width: 100%;
 
         .portrait {
@@ -99,16 +98,16 @@ $portrait-hover-border: var(--color-border-highlight);
 
       .hud-controls {
         position: absolute;
-        bottom: -$control-size;
-        left: 50%;
-        transform: translateX(-50%);
+        left: -($control-size + 8px); // Position to the left of the container
+        top: 50%;
+        transform: translateY(-50%);
         display: flex;
-        flex-direction: row;
-        gap: 1px;
+        flex-direction: column;
+        gap: 2px;
         background: $default-bg;
         border: $default-border;
-        border-radius: 0 0 8px 8px;
-        padding: 1px 4px;
+        border-radius: 3px;
+        padding: 2px;
         z-index: 15;
 
         .control-button {
@@ -143,6 +142,27 @@ div#emotive-hud.floating {
     align-items: flex-start;
     gap: 8px;
 
+    .hud-controls {
+      pointer-events: all;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-self: flex-start;
+
+      .control-button {
+        @include control-button-base;
+        border-radius: 3px;
+
+        &:hover {
+          border-color: $portrait-hover-border;
+        }
+
+        i {
+          font-size: 12px;
+        }
+      }
+    }
+
     .portrait-container {
       pointer-events: all;
       gap: 8px;
@@ -158,28 +178,6 @@ div#emotive-hud.floating {
 
         &:hover {
           border-color: $portrait-hover-border;
-        }
-      }
-    }
-
-    .hud-controls {
-      pointer-events: all;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-left: 8px;
-      align-self: flex-end;
-
-      .control-button {
-        @include control-button-base;
-        border-radius: 3px;
-
-        &:hover {
-          border-color: $portrait-hover-border;
-        }
-
-        i {
-          font-size: 12px;
         }
       }
     }
