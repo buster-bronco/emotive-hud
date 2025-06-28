@@ -4,18 +4,27 @@ import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
-const _portraitUpdateFlashTime : number = 500;
+// Streamlined positioning constants
+const POSITIONING = {
+  MARGIN_BASE: 16,
+  MARGIN_COLLAPSED: 64,
+  TOP_OFFSET: 16,
+  SIDEBAR_COLLAPSED_THRESHOLD: 100,
+  PORTRAIT_FLASH_DURATION: 500,
+} as const;
 
 export default class EmotiveHUD extends Application {
-  private sidebarObserver: MutationObserver | null = null;  
+  private sidebarObserver: MutationObserver | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  private hudElement: JQuery | null = null;
+  private lastSidebarWidth: number = 0;
+  private isUpdatingPosition: boolean = false;
 
   constructor(options = {}) {
     super(options);
     
-    // Listen for settings changes
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => this.render());
     Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.debouncedRender(true));
-    
   }
 
   private debouncedRender(force?: boolean): void {
@@ -36,49 +45,118 @@ export default class EmotiveHUD extends Application {
     }) as ApplicationOptions;
   }
 
-  private initializeSidebarObserver(): void {
-    // Create observer to watch sidebar for collapse/expand
-    this.sidebarObserver = new MutationObserver(() => {
-      this.setPosition();
-    });
-
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar && this.sidebarObserver) {
-      this.sidebarObserver.observe(sidebar, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
-    }
-  }
-
-
-  override setPosition(): void {
-    if (!this.isFloating || !this.element) return;
+  private initializeObservers(): void {
+    this.cleanupObservers();
 
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
-    // Calculate position based on sidebar state
-    const isSidebarCollapsed = sidebar.classList.contains('collapsed');
-    const offset = isSidebarCollapsed ? 10 : 330;
-    
-    this.element.css({
-      right: `${offset}px`,
-      bottom: '10px'
+    // Cache initial width
+    this.lastSidebarWidth = sidebar.getBoundingClientRect().width;
+
+    // Mutation observer for class changes (collapsed/expanded)
+    this.sidebarObserver = new MutationObserver(() => {
+      if (!this.isUpdatingPosition) {
+        this.checkAndUpdatePosition();
+      }
     });
+
+    this.sidebarObserver.observe(sidebar, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: false,
+      subtree: false
+    });
+
+    // Resize observer for actual width changes
+    if ('ResizeObserver' in window) {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (!this.isUpdatingPosition) {
+          this.checkAndUpdatePosition();
+        }
+      });
+      this.resizeObserver.observe(sidebar);
+    }
   }
 
-  override async close(options?: Application.CloseOptions): Promise<void> {
-    // Clean up observer when app closes
+  private cleanupObservers(): void {
     if (this.sidebarObserver) {
       this.sidebarObserver.disconnect();
       this.sidebarObserver = null;
     }
+
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+  }
+
+  private checkAndUpdatePosition(): void {
+    if (!this.isFloating || !this.hudElement) return;
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    const currentWidth = sidebar.getBoundingClientRect().width;
+    
+    // Only update if width actually changed
+    if (Math.abs(currentWidth - this.lastSidebarWidth) > 1) {
+      this.lastSidebarWidth = currentWidth;
+      this.updateHUDPositionImmediate();
+    }
+  }
+
+  private calculatePosition(): number {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return POSITIONING.MARGIN_BASE;
+
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const isCollapsed = sidebarRect.width < POSITIONING.SIDEBAR_COLLAPSED_THRESHOLD;
+    
+    // Calculate position based on sidebar state
+    if (isCollapsed) {
+      return POSITIONING.MARGIN_COLLAPSED;
+    } else {
+      // When expanded, position relative to sidebar's left edge
+      return window.innerWidth - sidebarRect.left + POSITIONING.MARGIN_BASE;
+    }
+  }
+
+  private updateHUDPositionImmediate(): void {
+    if (!this.isFloating || !this.hudElement || this.isUpdatingPosition) return;
+    
+    this.isUpdatingPosition = true;
+    
+    const rightOffset = this.calculatePosition();
+    
+    // Apply position immediately
+    this.hudElement.css({
+      'right': `${rightOffset}px`,
+      'top': `${POSITIONING.TOP_OFFSET}px`,
+      'transition': 'none'
+    });
+    
+    // Re-enable smooth transitions after immediate positioning
+    setTimeout(() => {
+      if (this.hudElement) {
+        this.hudElement.css('transition', 'right 0.2s ease-out');
+      }
+      this.isUpdatingPosition = false;
+    }, 50);
+  }
+
+  override setPosition(): void {
+    if (!this.isFloating) return;
+    this.updateHUDPositionImmediate();
+  }
+
+  override async close(options?: Application.CloseOptions): Promise<void> {
+    this.cleanupObservers();
+    this.hudElement = null;
     return super.close(options);
   }
 
   private cleanup(): void {
-    // Clean up any existing elements
     const existingEmbedded = document.querySelector('#emotive-hud-container');
     if (existingEmbedded) {
       existingEmbedded.remove();
@@ -89,11 +167,8 @@ export default class EmotiveHUD extends Application {
       existingFloating.remove();
     }
 
-    // Clean up sidebar observer if it exists
-    if (this.sidebarObserver) {
-      this.sidebarObserver.disconnect();
-      this.sidebarObserver = null;
-    }
+    this.cleanupObservers();
+    this.hudElement = null;
   }
 
   override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
@@ -108,10 +183,8 @@ export default class EmotiveHUD extends Application {
 
   private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
     const templateData = this.getData();
-    console.log("YUGI", templateData)
     const content = await renderTemplate(this.template!, templateData);
     
-    // Create or get the floating container
     let element = document.getElementById(this.id);
     if (!element) {
       element = document.createElement('div');
@@ -119,16 +192,14 @@ export default class EmotiveHUD extends Application {
       document.body.appendChild(element);
     }
     
-    // Set classes after ensuring element exists
     element.className = 'emotive-hud floating';
     element.innerHTML = content;
     
-    // Start observing sidebar if needed
-    if (!this.sidebarObserver) {
-      this.initializeSidebarObserver();
-    }
+    this.hudElement = $(element);
     
+    // Set initial position and initialize observers
     this.setPosition();
+    this.initializeObservers();
     
     if (element instanceof HTMLElement) {
       this.activateListeners($(element));
@@ -138,23 +209,21 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // Find the chat log
-    const chatLog = document.getElementById('chat');
-    if (!chatLog) {
-      console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find chat log element`);
+    // V13 compatible chat targeting
+    const chatColumn = document.querySelector('#ui-right-column-1 #chat') || document.getElementById('chat');
+    if (!chatColumn) {
+      console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find chat element in v13 structure`);
       return this;
     }
 
-    // Render the template
     const templateData = this.getData();
     const content = await renderTemplate(this.template!, templateData);
 
-    // Create or get the container for our HUD
-    let hudContainer = chatLog.querySelector('#emotive-hud-container');
+    let hudContainer = chatColumn.querySelector('#emotive-hud-container');
     if (!hudContainer) {
       hudContainer = document.createElement('div');
       hudContainer.id = 'emotive-hud-container';
-      chatLog.insertBefore(hudContainer, chatLog.firstChild);
+      chatColumn.insertBefore(hudContainer, chatColumn.firstChild);
     }
 
     hudContainer.innerHTML = content;
@@ -187,7 +256,6 @@ export default class EmotiveHUD extends Application {
             imgSrc: actor.img ?? "",
             name: actor.name ?? "",
             emotivePortraitRatio,
-
           };
         }
         return {
@@ -200,20 +268,17 @@ export default class EmotiveHUD extends Application {
     };
   }
   
-  // This function needs to renormalize because Foundry UUIDs for actors are prefixed with `Actor.` 
   private getActorsToShow(): Actor[] {
     const gameInstance = getGame();
     const hudState: HUDState = getHUDState();
     const actorLimit = getActorLimit();
     
-    // Create a Map of the HUD actors, using their UUID as the key and their position as the value
     const hudActorMap = new Map(
       hudState.actors
-        .slice(0, actorLimit) // Limit the number of actors based on settings
+        .slice(0, actorLimit)
         .map(actor => [actor.uuid, actor.position])
     );
     
-    // Normalize the UUIDs and fetch actors
     const actors = Array.from(hudActorMap.keys())
       .map(uuid => uuid.replace('Actor.', ''))
       .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))
@@ -221,7 +286,6 @@ export default class EmotiveHUD extends Application {
   
     return actors;
   }
-  
 
   override activateListeners(html: JQuery): void {
     super.activateListeners(html);
@@ -242,20 +306,12 @@ export default class EmotiveHUD extends Application {
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
     
-    if (!actorId) {
-      console.log(CONSTANTS.DEBUG_PREFIX, "No actor ID found");
-      return;
-    }
+    if (!actorId) return;
 
     const gameInstance = getGame();
     const actor = gameInstance.actors?.get(actorId);
-    if (!actor?.isOwner) {
-      console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
-      return;
-    }
-    console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
+    if (!actor?.isOwner) return;
 
-    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Portrait Menu");
     getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
@@ -266,20 +322,12 @@ export default class EmotiveHUD extends Application {
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
     
-    if (!actorId) {
-      console.log(CONSTANTS.DEBUG_PREFIX, "No actor ID found");
-      return;
-    }
+    if (!actorId) return;
 
     const gameInstance = getGame();
     const actor = gameInstance.actors?.get(actorId);
-    if (!actor?.isOwner) {
-      console.log(CONSTANTS.DEBUG_PREFIX, "User doesn't own actor", {actorId, actor});
-      return;
-    }
-    console.log(CONSTANTS.DEBUG_PREFIX, "Actor found and owned", {actorId, actor});
+    if (!actor?.isOwner) return;
 
-    console.log(CONSTANTS.DEBUG_PREFIX, "Opening Sheet");
     actor.sheet?.render(true);
   }
 
@@ -294,22 +342,20 @@ export default class EmotiveHUD extends Application {
     event.preventDefault();
     const currentState = getIsMinimized();
     await setIsMinimized(!currentState);
-    this.render();  // Force a re-render after setting the new state
+    this.render();
   }
 
   private getActorPortrait(actor: Actor): string {
-    // Get portrait from flags, fall back to default actor image
     return actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
   }
 
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
     this.render();
-    // Add flash effect after render
     setTimeout(() => {
       const portrait = document.querySelector(`.portrait[data-actor-id="${updateData.actorId}"]`);
       if (portrait) {
         portrait.classList.add('flash');
-        setTimeout(() => portrait.classList.remove('flash'), _portraitUpdateFlashTime);
+        setTimeout(() => portrait.classList.remove('flash'), POSITIONING.PORTRAIT_FLASH_DURATION);
       }
     }, 0);
   }
