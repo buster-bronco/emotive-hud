@@ -19,9 +19,14 @@ export default class EmotiveHUD extends Application {
   private lastSidebarWidth: number = 0;
   private isUpdatingPosition: boolean = false;
   private minimizeInProgress: boolean = false;
+  private documentObserver: MutationObserver | null = null;
+  private currentLayout: string = ''; // Track current layout to detect changes
 
   constructor(options = {}) {
     super(options);
+    
+    // Store initial layout
+    this.currentLayout = getHudLayout();
     
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => {
       if (this.minimizeInProgress) {
@@ -30,7 +35,11 @@ export default class EmotiveHUD extends Application {
         this.render();
       }
     });
-    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.debouncedRender(true));
+    
+    // Handle layout changes with proper cleanup and delay
+    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => {
+      this.handleLayoutChange();
+    });
     
     // Initialize sidebar watching when not floating
     Hooks.once('ready', () => {
@@ -38,6 +47,49 @@ export default class EmotiveHUD extends Application {
         this.initializeSidebarWatcher();
       }
     });
+  }
+
+  private async handleLayoutChange(): Promise<void> {
+    const newLayout = getHudLayout();
+    
+    // Only proceed if layout actually changed
+    if (this.currentLayout === newLayout) {
+      return;
+    }
+    
+    console.log(`${CONSTANTS.DEBUG_PREFIX} Layout changing from ${this.currentLayout} to ${newLayout}`);
+    
+    // Force cleanup of current state
+    this.forceCleanup();
+    
+    // Update stored layout
+    this.currentLayout = newLayout;
+    
+    // Small delay to ensure settings are propagated and DOM is clean
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Force re-render with new layout
+    this.render(true);
+  }
+
+  private forceCleanup(): void {
+    // More aggressive cleanup
+    const existingContainers = document.querySelectorAll('#emotive-hud-container, #emotive-hud');
+    existingContainers.forEach(container => {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    });
+
+    // Clean up observers
+    this.cleanupObservers();
+    
+    // Reset element reference
+    this.hudElement = null;
+    
+    // Reset any positioning flags
+    this.isUpdatingPosition = false;
+    this.minimizeInProgress = false;
   }
 
   private debouncedRender(force?: boolean): void {
@@ -70,6 +122,7 @@ export default class EmotiveHUD extends Application {
   }
 
   get isFloating(): boolean {
+    // Always get fresh value from settings to avoid caching issues
     return getHudLayout() === 'floating';
   }
 
@@ -121,6 +174,11 @@ export default class EmotiveHUD extends Application {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+
+    if (this.documentObserver) {
+      this.documentObserver.disconnect();
+      this.documentObserver = null;
     }
   }
 
@@ -190,18 +248,8 @@ export default class EmotiveHUD extends Application {
   }
 
   private cleanup(): void {
-    const existingEmbedded = document.querySelector('#emotive-hud-container');
-    if (existingEmbedded) {
-      existingEmbedded.remove();
-    }
-
-    const existingFloating = document.getElementById(this.id);
-    if (existingFloating) {
-      existingFloating.remove();
-    }
-
-    this.cleanupObservers();
-    this.hudElement = null;
+    // Use the more aggressive cleanup
+    this.forceCleanup();
   }
 
   override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
@@ -210,9 +258,15 @@ export default class EmotiveHUD extends Application {
       return this;
     }
 
+    // Always cleanup before rendering
     this.cleanup();
 
-    if (this.isFloating) {
+    // Check current layout fresh from settings
+    const currentLayout = getHudLayout();
+    
+    console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering in ${currentLayout} mode`);
+
+    if (currentLayout === 'floating') {
       return this.renderFloating(force, options);
     } else {
       return this.renderEmbedded(force, options);
@@ -220,6 +274,8 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
+    console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering floating HUD`);
+    
     const templateData = this.getData();
     const content = await renderTemplate(this.template!, templateData);
     
@@ -246,60 +302,64 @@ export default class EmotiveHUD extends Application {
   }
 
   private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
-    // Check if sidebar is expanded and chat tab is active
+    console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering embedded HUD`);
+    
+    // Get sidebar and chat elements
     const sidebar = document.getElementById('sidebar');
-    const sidebarContent = document.getElementById('sidebar-content');
+    const chatTab = document.querySelector('#sidebar .tab[data-tab="chat"]') as HTMLElement;
     const isSidebarExpanded = sidebar && !sidebar.classList.contains('collapsed');
-    const isChatTabActive = sidebarContent && sidebarContent.classList.contains('active-chat');
+    
+    // Check if chat tab is active using v13 method
+    const isChatTabActive = chatTab?.classList.contains('active') || 
+                            document.querySelector('#sidebar .tab.active[data-tab="chat"]') !== null;
     
     let targetElement: Element | null = null;
-    let insertMode: 'sidebar' | 'notifications' = 'notifications';
     
+    // Always try to embed in sidebar when user chooses embedded
     if (isSidebarExpanded && isChatTabActive) {
       // Sidebar is open and chat tab is active - embed in sidebar
-      targetElement = document.querySelector('#sidebar #chat, #sidebar-content.active-chat');
-      insertMode = 'sidebar';
+      targetElement = document.querySelector('#sidebar .tab-content[data-tab="chat"], #sidebar #chat');
     } else {
-      // Sidebar closed or different tab - use notifications area parent
-      // Target the parent container, not the notifications area itself
-      targetElement = document.getElementById('chat-notifications')?.parentElement || document.body;
-      insertMode = 'notifications';
+      // If chat tab isn't active or sidebar is collapsed, 
+      // force activate chat tab and expand sidebar for embedded mode
+      if (sidebar && sidebar.classList.contains('collapsed')) {
+        // Expand sidebar first
+        sidebar.classList.remove('collapsed');
+      }
+      
+      // Activate chat tab
+      const chatTabButton = document.querySelector('#sidebar .tab[data-tab="chat"]') as HTMLElement;
+      if (chatTabButton && !chatTabButton.classList.contains('active')) {
+        chatTabButton.click(); // This should activate the chat tab
+      }
+      
+      // Try again to find the target
+      targetElement = document.querySelector('#sidebar .tab-content[data-tab="chat"], #sidebar #chat');
     }
     
+    // If we still can't find the chat area, fall back to creating it
     if (!targetElement) {
-      console.error(`${CONSTANTS.DEBUG_PREFIX} Could not find suitable chat container in v13`);
-      return this;
+      console.warn(`${CONSTANTS.DEBUG_PREFIX} Could not find chat container, falling back to sidebar`);
+      targetElement = document.getElementById('sidebar') || document.body;
     }
 
     const templateData = this.getData();
     const content = await renderTemplate(this.template!, templateData);
 
-    // Remove any existing container
-    const existingContainer = document.getElementById('emotive-hud-container');
-    if (existingContainer) {
-      existingContainer.remove();
-    }
-
-    // Create new container
+    // Create new container - always use sidebar mode for embedded
     const hudContainer = document.createElement('div');
     hudContainer.id = 'emotive-hud-container';
-    hudContainer.className = `emotive-hud-embedded emotive-hud-${insertMode}`;
+    hudContainer.className = `emotive-hud-embedded emotive-hud-sidebar`; // Always sidebar, never notifications
     
-    // Insert based on mode
-    if (insertMode === 'sidebar') {
-      // For sidebar, insert at the very top
+    // Always insert at the top of the target element
+    if (targetElement.firstChild) {
       targetElement.insertBefore(hudContainer, targetElement.firstChild);
     } else {
-      // For notifications, position outside the flex flow
-      hudContainer.style.position = 'fixed';
-      hudContainer.style.top = '10px';
-      hudContainer.style.right = '10px';
-      hudContainer.style.zIndex = '1000';
-      hudContainer.style.maxWidth = '300px';
       targetElement.appendChild(hudContainer);
     }
 
     hudContainer.innerHTML = content;
+    this.hudElement = $(hudContainer);
 
     if (hudContainer instanceof HTMLElement) {
       this.activateListeners($(hudContainer));
@@ -309,40 +369,66 @@ export default class EmotiveHUD extends Application {
   }
 
   private initializeSidebarWatcher(): void {
-    // Watch for sidebar state changes
+    // Watch for sidebar state changes and tab changes
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
-    const observer = new MutationObserver(() => {
-      // Re-render when sidebar state changes
-      if (!this.isFloating) {
+    const observer = new MutationObserver((mutations) => {
+      let shouldRerender = false;
+      
+      mutations.forEach((mutation) => {
+        // Check for sidebar collapse/expand
+        if (mutation.target === sidebar && mutation.attributeName === 'class') {
+          shouldRerender = true;
+        }
+        
+        // Check for tab changes - look for active class changes on tab elements
+        if (mutation.target instanceof HTMLElement && 
+            (mutation.target.classList.contains('tab') || 
+            mutation.target.classList.contains('tab-content')) && 
+            mutation.attributeName === 'class') {
+          shouldRerender = true;
+        }
+      });
+      
+      if (shouldRerender && !this.isFloating) {
         this.debouncedRender();
       }
     });
 
+    // Observe sidebar and its children for class changes
     observer.observe(sidebar, {
       attributes: true,
-      attributeFilter: ['class']
+      attributeFilter: ['class'],
+      subtree: true, // Watch all descendants
+      childList: false
     });
 
-    // Watch for sidebar content changes (tab switching)
-    const sidebarContent = document.getElementById('sidebar-content');
-    if (sidebarContent) {
-      const contentObserver = new MutationObserver(() => {
-        if (!this.isFloating) {
-          this.debouncedRender();
+    // Also watch the document for tab changes that might happen outside sidebar
+    const documentObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.target instanceof HTMLElement &&
+            mutation.target.closest('#sidebar') &&
+            (mutation.target.classList.contains('active') || 
+            mutation.attributeName === 'class')) {
+          if (!this.isFloating) {
+            this.debouncedRender();
+          }
         }
       });
+    });
 
-      contentObserver.observe(sidebarContent, {
-        attributes: true,
-        attributeFilter: ['class']
-      });
-    }
+    documentObserver.observe(document, {
+      attributes: true,
+      attributeFilter: ['class'],
+      subtree: true
+    });
 
     // Store observers for cleanup
-    if (!this.sidebarObserver) {
-      this.sidebarObserver = observer;
+    this.sidebarObserver = observer;
+    // Store the document observer too
+    if (!this.documentObserver) {
+      this.documentObserver = documentObserver;
     }
   }
 

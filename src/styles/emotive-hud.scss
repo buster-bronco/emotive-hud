@@ -64,7 +64,6 @@
     }
   }
 
-  // Base embedded HUD styles
   .emotive-hud-embedded {
     pointer-events: auto;
     opacity: 1;
@@ -108,7 +107,7 @@
         border: $default-border;
         border-radius: 4px;
         padding: 4px;
-        z-index: 1010;
+        z-index: 10; // Low z-index to not interfere with UI
 
         .control-button {
           @include control-button-base;
@@ -128,24 +127,9 @@
     }
   }
 
-  // Notifications mode - fixed positioning to avoid flex constraints
-  .emotive-hud-notifications {
-    background: rgba(0, 0, 0, 0.9);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    
-    .emotive-hud .portrait-container {
-      background: transparent;
-      border: none;
-    }
-  }
-
-  // Sidebar mode - normal flow
+  // Sidebar mode - normal flow within chat tab
   .emotive-hud-sidebar {
     position: relative;
-    border-bottom: 1px solid var(--color-border-dark);
-    padding-bottom: 8px;
     margin-bottom: 8px;
     
     .emotive-hud .portrait-container {
@@ -154,10 +138,40 @@
     }
   }
 
+  // Notifications mode - positioned but with lower z-index and better positioning
+  .emotive-hud-notifications {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    max-width: 280px;
+    z-index: 50; // Much lower z-index - below Foundry's core UI elements
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    
+    // Adjust position when sidebar is expanded
+    body:not(.sidebar-collapsed) & {
+      right: 340px; // Account for sidebar width
+    }
+    
+    .emotive-hud .portrait-container {
+      background: transparent;
+      border: none;
+    }
+    
+    .emotive-hud .hud-controls {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      z-index: 5; // Relative to container
+    }
+  }
+
   // Floating HUD styles (unchanged)
   div#emotive-hud.floating {
     position: fixed;
-    z-index: 45;
+    z-index: 45; // Lower than notifications mode
     pointer-events: none;
     transition: right 0.1s ease;
 
