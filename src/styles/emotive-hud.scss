@@ -1,190 +1,240 @@
-// Variables
-$default-border: 1px solid var(--color-border-dark);
-$default-bg: rgba(0, 0, 0, 0.5);
-$control-size: 24px;
-$portrait-hover-border: var(--color-border-highlight);
+// Use the module layer (automatic in v13)
+@layer module {
+  // Variables
+  $default-border: 1px solid var(--color-border-dark);
+  $default-bg: rgba(0, 0, 0, 0.5);
+  $control-size: 24px;
+  $portrait-hover-border: var(--color-border-highlight);
 
-// Mixins
-@mixin center-flex {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@mixin control-button-base {
-  width: $control-size;
-  height: $control-size;
-  padding: 0;
-  color: var(--color-text-light-highlight);
-  background: $default-bg;
-  cursor: pointer;
-  @include center-flex;
-  line-height: 1;
-
-  i.fas {
-    @include center-flex;
-    width: 100%;
-    height: 100%;
-    line-height: 0;
-    margin: 0;
-    padding: 0;
+  // Mixins
+  @mixin center-flex {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-}
 
-@mixin portrait-container-base {
-  display: grid;
-  background: $default-bg;
-  border: $default-border;
-}
+  @mixin control-button-base {
+    width: $control-size;
+    height: $control-size;
+    padding: 0;
+    color: var(--color-text-light-highlight);
+    background: $default-bg;
+    cursor: pointer;
+    @include center-flex;
+    line-height: 1;
 
-// Common portrait styles
-.portrait-container {
-  @include portrait-container-base;
-
-  .portrait {
-    border: $default-border;
-    overflow: hidden;
-
-    &.flash {
-      animation: portrait-flash 0.5s ease-out;
-    }
-
-    @keyframes portrait-flash {
-      0% { border-color: white; }
-      100% { border-color: var(--color-border-dark); }
-    }
-
-    img {
+    i.fas {
+      @include center-flex;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      line-height: 0;
+      margin: 0;
+      padding: 0;
     }
   }
-}
 
-// Embedded HUD styles (in chat)
-section.chat-sidebar.directory.flexcol.active {
-  #emotive-hud-container {
-    flex: 0 0 auto;
-    min-height: 0;
-    width: 100%;
-    line-height: 0;
-    font-size: 0;
-    position: relative;
+  @mixin portrait-container-base {
+    display: grid;
+    background: $default-bg;
+    border: $default-border;
   }
 
-  .emotive-hud {
-    display: flex;
-    flex-direction: column;
-    font-size: var(--font-size-14);
-    line-height: 1;
-    position: relative;
+  // Common portrait styles
+  .portrait-container {
+    @include portrait-container-base;
 
-    .portrait-container {
-      gap: 1px;
-      grid-template-columns: repeat(var(--grid-columns), 1fr);
-      border-bottom: none;
-      width: 100%;
-
-      .portrait {
-        aspect-ratio: var(--portrait-ratio);
-      }
-    }
-
-    .hud-controls {
-      position: absolute;
-      bottom: -$control-size; /* Extend below the container */
-      left: 50%; /* Center horizontally */
-      transform: translateX(-50%); /* Center horizontally */
-      display: flex;
-      flex-direction: row;
-      gap: 1px;
-      background: $default-bg;
+    .portrait {
       border: $default-border;
-      border-radius: 0 0 8px 8px;
-      padding: 1px 4px;
+      overflow: hidden;
 
-      .control-button {
-        @include control-button-base;
-        border: none;
-        background: none;
-        
-        &:first-child {
-          border-left: none; // Remove left border from first button
-        }
+      &.flash {
+        animation: portrait-flash 0.5s ease-out;
+      }
 
-        i {
-          font-size: 8px;
-        }
+      @keyframes portrait-flash {
+        0% { border-color: white; }
+        100% { border-color: var(--color-border-dark); }
+      }
 
-        &:hover {
-          color: white;
-        }
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
       }
     }
   }
-}
 
-// Floating HUD styles
-#emotive-hud.floating {
-  position: fixed;
-  bottom: 10px;
-  z-index: 70;
-  transition: right 0.1s ease;
-  pointer-events: none;
+  .emotive-hud-embedded {
+    pointer-events: auto;
+    opacity: 1;
 
-  // Default positioning (expanded sidebar)
-  right: 320px;
-
-  // When sidebar is collapsed, adjust position
-  .sidebar-collapsed & {
-    right: 10px;
-  }
-
-  .emotive-hud {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 4px;
-
-    .portrait-container {
-      pointer-events: all;
-      gap: 8px;
-      padding: 8px;
-      border-radius: 3px;
-      grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), var(--floatingPortraitWidth));
-      width: fit-content;
-
-      .portrait {
-        aspect-ratio: var(--portrait-ratio);
-      }
-
-      .portrait:hover {
-        border-color: $portrait-hover-border;
-      }
-    }
-
-    .hud-controls {
-      pointer-events: all;
+    .emotive-hud {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      margin-left: 4px;
-      align-self: flex-end;
+      font-size: var(--font-size-14);
+      line-height: 1;
+      position: relative;
+      width: 100%;
 
-      .control-button {
-        @include control-button-base;
-        border-radius: 3px;
+      .portrait-container {
+        @include portrait-container-base;
+        gap: 2px;
+        padding: 8px;
+        border-radius: 4px;
+        grid-template-columns: repeat(var(--grid-columns), 1fr);
+        width: 100%;
+        box-sizing: border-box;
 
-        &:hover {
-          border-color: $portrait-hover-border;
-        }
-
-        i {
-          font-size: 12px;
+        .portrait {
+          aspect-ratio: var(--portrait-ratio);
+          width: 100%;
+          height: auto;
+          
+          &:hover {
+            border-color: $portrait-hover-border;
+          }
         }
       }
+
+      .hud-controls {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        background: $default-bg;
+        border: $default-border;
+        border-radius: 4px;
+        padding: 4px;
+        z-index: 10; // Low z-index to not interfere with UI
+
+        .control-button {
+          @include control-button-base;
+          border: none;
+          background: none;
+          
+          i {
+            font-size: 10px;
+          }
+
+          &:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+          }
+        }
+      }
+    }
+  }
+
+  // Sidebar mode - normal flow within chat tab
+  .emotive-hud-sidebar {
+    position: relative;
+    margin-bottom: 8px;
+    
+    .emotive-hud .portrait-container {
+      background: $default-bg;
+      border: $default-border;
+    }
+  }
+
+  // Notifications mode - positioned but with lower z-index and better positioning
+  .emotive-hud-notifications {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    max-width: 280px;
+    z-index: 50; // Much lower z-index - below Foundry's core UI elements
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    
+    // Adjust position when sidebar is expanded
+    body:not(.sidebar-collapsed) & {
+      right: 340px; // Account for sidebar width
+    }
+    
+    .emotive-hud .portrait-container {
+      background: transparent;
+      border: none;
+    }
+    
+    .emotive-hud .hud-controls {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      z-index: 5; // Relative to container
+    }
+  }
+
+  // Floating HUD styles (unchanged)
+  div#emotive-hud.floating {
+    position: fixed;
+    z-index: 45; // Lower than notifications mode
+    pointer-events: none;
+    transition: right 0.1s ease;
+
+    .emotive-hud {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 8px;
+
+      .hud-controls {
+        pointer-events: all;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-self: flex-start;
+
+        .control-button {
+          @include control-button-base;
+          border-radius: 3px;
+
+          &:hover {
+            border-color: $portrait-hover-border;
+          }
+
+          i {
+            font-size: 12px;
+          }
+        }
+      }
+
+      .portrait-container {
+        pointer-events: all;
+        gap: 8px;
+        padding: 16px;
+        border-radius: 3px;
+        grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), var(--floatingPortraitWidth));
+        width: fit-content;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        .portrait {
+          aspect-ratio: var(--portrait-ratio);
+          width: var(--floatingPortraitWidth);
+
+          &:hover {
+            border-color: $portrait-hover-border;
+          }
+        }
+      }
+    }
+  }
+
+  // Performance optimizations
+  @media (prefers-reduced-motion: reduce) {
+    .portrait-container .portrait {
+      &.flash {
+        animation: none;
+        border-color: white;
+      }
+    }
+    
+    div#emotive-hud.floating {
+      transition: none;
     }
   }
 }

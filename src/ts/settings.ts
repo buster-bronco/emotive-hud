@@ -141,6 +141,7 @@ export const updateActorConfig = async (uuid: string, folderPath: string | undef
       return ext.endsWith('.jpg') || 
              ext.endsWith('.jpeg') || 
              ext.endsWith('.png') || 
+             ext.endsWith('.gif') || 
              ext.endsWith('.webp');
     });
 

@@ -2,6 +2,9 @@
 
 **Emotive HUD** is a [Foundry VTT](https://foundryvtt.com) module that brings characters to life with a dynamic portrait interface. This module lets players express their characters' emotions and reactions in real-time.
 
+## v13 Update
+- Now working on v13 version upgrade.
+
 ## Features
 
 ### Dynamic Portrait HUD
@@ -32,7 +35,7 @@ https://github.com/user-attachments/assets/d8bf1931-917c-47c9-bba0-002f469a6e60
 
 ### Portrait Requirements
 
-- Supported image formats: `JPG`, `JPEG`, `PNG`, `WEBP`
+- Supported image formats: `JPG`, `JPEG`, `PNG`, `WEBP`, `GIF`
 - All portraits for a character should be in the same folder
 - Consistent image dimensions are recommended for best results
 
