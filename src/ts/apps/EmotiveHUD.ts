@@ -24,10 +24,10 @@ export default class EmotiveHUD extends Application {
 
   constructor(options = {}) {
     super(options);
-    
+
     // Store initial layout
     this.currentLayout = getHudLayout();
-    
+
     Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => {
       if (this.minimizeInProgress) {
         this.handleMinimizeStateChange();
@@ -35,12 +35,12 @@ export default class EmotiveHUD extends Application {
         this.render();
       }
     });
-    
+
     // Handle layout changes with proper cleanup and delay
     Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => {
       this.handleLayoutChange();
     });
-    
+
     // Initialize sidebar watching when not floating
     Hooks.once('ready', () => {
       if (!this.isFloating) {
@@ -51,23 +51,23 @@ export default class EmotiveHUD extends Application {
 
   private async handleLayoutChange(): Promise<void> {
     const newLayout = getHudLayout();
-    
+
     // Only proceed if layout actually changed
     if (this.currentLayout === newLayout) {
       return;
     }
-    
+
     console.log(`${CONSTANTS.DEBUG_PREFIX} Layout changing from ${this.currentLayout} to ${newLayout}`);
-    
+
     // Force cleanup of current state
     this.forceCleanup();
-    
+
     // Update stored layout
     this.currentLayout = newLayout;
-    
+
     // Small delay to ensure settings are propagated and DOM is clean
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Force re-render with new layout
     this.render(true);
   }
@@ -83,10 +83,10 @@ export default class EmotiveHUD extends Application {
 
     // Clean up observers
     this.cleanupObservers();
-    
+
     // Reset element reference
     this.hudElement = null;
-    
+
     // Reset any positioning flags
     this.isUpdatingPosition = false;
     this.minimizeInProgress = false;
@@ -189,7 +189,7 @@ export default class EmotiveHUD extends Application {
     if (!sidebar) return;
 
     const currentWidth = sidebar.getBoundingClientRect().width;
-    
+
     if (Math.abs(currentWidth - this.lastSidebarWidth) > 1) {
       this.lastSidebarWidth = currentWidth;
       this.updateHUDPositionImmediate();
@@ -202,7 +202,7 @@ export default class EmotiveHUD extends Application {
 
     const sidebarRect = sidebar.getBoundingClientRect();
     const isCollapsed = sidebarRect.width < POSITIONING.SIDEBAR_COLLAPSED_THRESHOLD;
-    
+
     if (isCollapsed) {
       return POSITIONING.MARGIN_COLLAPSED;
     } else {
@@ -212,17 +212,17 @@ export default class EmotiveHUD extends Application {
 
   private updateHUDPositionImmediate(): void {
     if (!this.isFloating || !this.hudElement || this.isUpdatingPosition || this.minimizeInProgress) return;
-    
+
     this.isUpdatingPosition = true;
-    
+
     const rightOffset = this.calculatePosition();
-    
+
     this.hudElement.css({
       'right': `${rightOffset}px`,
       'top': `${POSITIONING.TOP_OFFSET}px`,
       'transition': 'none'
     });
-    
+
     setTimeout(() => {
       if (this.hudElement && !this.minimizeInProgress) {
         this.hudElement.css('transition', 'right 0.2s ease-out');
@@ -233,7 +233,7 @@ export default class EmotiveHUD extends Application {
 
   override setPosition(): void {
     if (!this.isFloating || this.minimizeInProgress) return;
-    
+
     setTimeout(() => {
       if (!this.minimizeInProgress) {
         this.updateHUDPositionImmediate();
@@ -253,9 +253,17 @@ export default class EmotiveHUD extends Application {
   }
 
   override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
-    // Don't cleanup and re-render if we're just handling a minimize operation
     if (this.minimizeInProgress) {
       return this;
+    }
+
+    // Store current position before cleanup if floating
+    let currentPosition: { right: string; top: string } | null = null;
+    if (this.hudElement && this.isFloating) {
+      currentPosition = {
+        right: this.hudElement.css('right'),
+        top: this.hudElement.css('top')
+      };
     }
 
     // Always cleanup before rendering
@@ -263,37 +271,57 @@ export default class EmotiveHUD extends Application {
 
     // Check current layout fresh from settings
     const currentLayout = getHudLayout();
-    
+
     console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering in ${currentLayout} mode`);
 
     if (currentLayout === 'floating') {
-      return this.renderFloating(force, options);
+      await this.renderFloating(force, options, currentPosition);
     } else {
-      return this.renderEmbedded(force, options);
+      await this.renderEmbedded(force, options);
     }
+
+    return this;
   }
 
-  private async renderFloating(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
+  private async renderFloating(_force?: boolean, _options?: Application.RenderOptions, previousPosition?: { right: string; top: string } | null): Promise<this> {
     console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering floating HUD`);
-    
+
     const templateData = this.getData();
     const content = await renderTemplate(this.template!, templateData);
-    
+
     let element = document.getElementById(this.id);
     if (!element) {
       element = document.createElement('div');
       element.id = this.id;
+      element.style.position = 'fixed';
+      element.style.visibility = 'hidden';
       document.body.appendChild(element);
     }
-    
+
+    if (previousPosition) {
+      element.style.right = previousPosition.right;
+      element.style.top = previousPosition.top;
+    } else {
+      const rightOffset = this.calculatePosition();
+      element.style.right = `${rightOffset}px`;
+      element.style.top = `${POSITIONING.TOP_OFFSET}px`;
+    }
+
+    // Set class and content
     element.className = 'emotive-hud floating';
     element.innerHTML = content;
-    
+
     this.hudElement = $(element);
-    
-    this.setPosition();
+
+    // Make visible after everything is positioned
+    if (element.style.visibility === 'hidden') {
+      requestAnimationFrame(() => {
+        element.style.visibility = 'visible';
+      });
+    }
+
     this.initializeObservers();
-    
+
     if (element instanceof HTMLElement) {
       this.activateListeners($(element));
     }
@@ -303,18 +331,18 @@ export default class EmotiveHUD extends Application {
 
   private async renderEmbedded(_force?: boolean, _options?: Application.RenderOptions): Promise<this> {
     console.log(`${CONSTANTS.DEBUG_PREFIX} Rendering embedded HUD`);
-    
+
     // Get sidebar and chat elements
     const sidebar = document.getElementById('sidebar');
     const chatTab = document.querySelector('#sidebar .tab[data-tab="chat"]') as HTMLElement;
     const isSidebarExpanded = sidebar && !sidebar.classList.contains('collapsed');
-    
+
     // Check if chat tab is active using v13 method
-    const isChatTabActive = chatTab?.classList.contains('active') || 
-                            document.querySelector('#sidebar .tab.active[data-tab="chat"]') !== null;
-    
+    const isChatTabActive = chatTab?.classList.contains('active') ||
+      document.querySelector('#sidebar .tab.active[data-tab="chat"]') !== null;
+
     let targetElement: Element | null = null;
-    
+
     // Always try to embed in sidebar when user chooses embedded
     if (isSidebarExpanded && isChatTabActive) {
       // Sidebar is open and chat tab is active - embed in sidebar
@@ -326,17 +354,17 @@ export default class EmotiveHUD extends Application {
         // Expand sidebar first
         sidebar.classList.remove('collapsed');
       }
-      
+
       // Activate chat tab
       const chatTabButton = document.querySelector('#sidebar .tab[data-tab="chat"]') as HTMLElement;
       if (chatTabButton && !chatTabButton.classList.contains('active')) {
         chatTabButton.click(); // This should activate the chat tab
       }
-      
+
       // Try again to find the target
       targetElement = document.querySelector('#sidebar .tab-content[data-tab="chat"], #sidebar #chat');
     }
-    
+
     // If we still can't find the chat area, fall back to creating it
     if (!targetElement) {
       console.warn(`${CONSTANTS.DEBUG_PREFIX} Could not find chat container, falling back to sidebar`);
@@ -350,7 +378,7 @@ export default class EmotiveHUD extends Application {
     const hudContainer = document.createElement('div');
     hudContainer.id = 'emotive-hud-container';
     hudContainer.className = `emotive-hud-embedded emotive-hud-sidebar`; // Always sidebar, never notifications
-    
+
     // Always insert at the top of the target element
     if (targetElement.firstChild) {
       targetElement.insertBefore(hudContainer, targetElement.firstChild);
@@ -375,22 +403,22 @@ export default class EmotiveHUD extends Application {
 
     const observer = new MutationObserver((mutations) => {
       let shouldRerender = false;
-      
+
       mutations.forEach((mutation) => {
         // Check for sidebar collapse/expand
         if (mutation.target === sidebar && mutation.attributeName === 'class') {
           shouldRerender = true;
         }
-        
+
         // Check for tab changes - look for active class changes on tab elements
-        if (mutation.target instanceof HTMLElement && 
-            (mutation.target.classList.contains('tab') || 
-            mutation.target.classList.contains('tab-content')) && 
-            mutation.attributeName === 'class') {
+        if (mutation.target instanceof HTMLElement &&
+          (mutation.target.classList.contains('tab') ||
+            mutation.target.classList.contains('tab-content')) &&
+          mutation.attributeName === 'class') {
           shouldRerender = true;
         }
       });
-      
+
       if (shouldRerender && !this.isFloating) {
         this.debouncedRender();
       }
@@ -408,8 +436,8 @@ export default class EmotiveHUD extends Application {
     const documentObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.target instanceof HTMLElement &&
-            mutation.target.closest('#sidebar') &&
-            (mutation.target.classList.contains('active') || 
+          mutation.target.closest('#sidebar') &&
+          (mutation.target.classList.contains('active') ||
             mutation.attributeName === 'class')) {
           if (!this.isFloating) {
             this.debouncedRender();
@@ -438,7 +466,7 @@ export default class EmotiveHUD extends Application {
     const columns = getGridColumns();
     const emotivePortraitRatio = getPortraitRatio();
     const floatingPortraitWidth = getFloatingPortraitWidth();
-    
+
     return {
       isGM: isCurrentUserGM(),
       isMinimized,
@@ -464,34 +492,34 @@ export default class EmotiveHUD extends Application {
       })
     };
   }
-  
+
   private getActorsToShow(): Actor[] {
     const gameInstance = getGame();
     const hudState: HUDState = getHUDState();
     const actorLimit = getActorLimit();
-    
+
     const hudActorMap = new Map(
       hudState.actors
         .slice(0, actorLimit)
         .map(actor => [actor.uuid, actor.position])
     );
-    
+
     const actors = Array.from(hudActorMap.keys())
       .map(uuid => uuid.replace('Actor.', ''))
       .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))
       .filter(actor => actor) as Actor[];
-  
+
     return actors;
   }
 
   override activateListeners(html: JQuery): void {
     super.activateListeners(html);
-    
+
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
-    
+
     const portraits = html.find('.portrait');
-    
+
     portraits.on('contextmenu', this._onPortraitRightClick.bind(this));
     portraits.on('dblclick', this._onPortraitDoubleClick.bind(this));
   }
@@ -502,7 +530,7 @@ export default class EmotiveHUD extends Application {
 
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
-    
+
     if (!actorId) return;
 
     const gameInstance = getGame();
@@ -518,7 +546,7 @@ export default class EmotiveHUD extends Application {
 
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
-    
+
     if (!actorId) return;
 
     const gameInstance = getGame();
@@ -537,13 +565,13 @@ export default class EmotiveHUD extends Application {
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
-    
+
     // Set flag to indicate minimize is in progress
     this.minimizeInProgress = true;
-    
+
     const currentState = getIsMinimized();
     await setIsMinimized(!currentState);
-    
+
     // The minimizeInProgress flag will be cleared in handleMinimizeStateChange()
   }
 
@@ -552,13 +580,38 @@ export default class EmotiveHUD extends Application {
   }
 
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
-    this.render();
-    setTimeout(() => {
-      const portrait = document.querySelector(`.portrait[data-actor-id="${updateData.actorId}"]`);
-      if (portrait) {
-        portrait.classList.add('flash');
-        setTimeout(() => portrait.classList.remove('flash'), POSITIONING.PORTRAIT_FLASH_DURATION);
+    // just update the specific portrait
+    const portrait = this.hudElement?.find(`.portrait[data-actor-id="${updateData.actorId}"]`);
+
+    if (portrait && portrait.length) {
+      // Update the image source directly
+      const game = getGame();
+      const actor = game.actors?.get(updateData.actorId);
+      if (actor) {
+        const newSrc = actor.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || actor.img || "";
+        const img = portrait.find('img');
+
+        // Update image with animation
+        img.attr('src', newSrc);
+        portrait.addClass('flash');
+        setTimeout(() => {
+          portrait?.removeClass('flash');
+        }, POSITIONING.PORTRAIT_FLASH_DURATION);
       }
-    }, 0);
+    } else {
+      // Fall back to full render if portrait not found
+      this.render().then(() => {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          const newPortrait = this.hudElement?.find(`.portrait[data-actor-id="${updateData.actorId}"]`);
+          if (newPortrait && newPortrait.length) {
+            newPortrait.addClass('flash');
+            setTimeout(() => {
+              newPortrait?.removeClass('flash');
+            }, POSITIONING.PORTRAIT_FLASH_DURATION);
+          }
+        });
+      });
+    }
   }
 }

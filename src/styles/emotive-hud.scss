@@ -1,10 +1,9 @@
-// Use the module layer (automatic in v13)
 @layer module {
   // Variables
-  $default-border: 1px solid var(--color-border-dark);
+  $default-border: 1px solid #444; // Use explicit color
   $default-bg: rgba(0, 0, 0, 0.5);
   $control-size: 24px;
-  $portrait-hover-border: var(--color-border-highlight);
+  $portrait-hover-border: #ff6400; // Use explicit color
 
   // Mixins
   @mixin center-flex {
@@ -17,7 +16,7 @@
     width: $control-size;
     height: $control-size;
     padding: 0;
-    color: var(--color-text-light-highlight);
+    color: var(--color-text-light-highlight, #fff);
     background: $default-bg;
     cursor: pointer;
     @include center-flex;
@@ -39,27 +38,41 @@
     border: $default-border;
   }
 
-  // Common portrait styles
+  // Animation definition at root level
+  @keyframes portrait-flash {
+    0% { 
+      border-color: #fff !important;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+    100% { 
+      border-color: #444 !important;
+      box-shadow: none;
+    }
+  }
+
+  // Common portrait styles - properly nested
   .portrait-container {
     @include portrait-container-base;
 
     .portrait {
-      border: $default-border;
+      border: 1px solid #444;
       overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
 
       &.flash {
         animation: portrait-flash 0.5s ease-out;
       }
 
-      @keyframes portrait-flash {
-        0% { border-color: white; }
-        100% { border-color: var(--color-border-dark); }
+      &:hover {
+        border-color: #ff6400
       }
 
       img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        display: block;
       }
     }
   }
@@ -71,7 +84,7 @@
     .emotive-hud {
       display: flex;
       flex-direction: column;
-      font-size: var(--font-size-14);
+      font-size: var(--font-size-14, 14px);
       line-height: 1;
       position: relative;
       width: 100%;
@@ -89,10 +102,7 @@
           aspect-ratio: var(--portrait-ratio);
           width: 100%;
           height: auto;
-          
-          &:hover {
-            border-color: $portrait-hover-border;
-          }
+          border: 1px solid #444
         }
       }
 
@@ -107,7 +117,7 @@
         border: $default-border;
         border-radius: 4px;
         padding: 4px;
-        z-index: 10; // Low z-index to not interfere with UI
+        z-index: 10;
 
         .control-button {
           @include control-button-base;
@@ -127,7 +137,7 @@
     }
   }
 
-  // Sidebar mode - normal flow within chat tab
+  // Sidebar mode
   .emotive-hud-sidebar {
     position: relative;
     margin-bottom: 8px;
@@ -138,40 +148,10 @@
     }
   }
 
-  // Notifications mode - positioned but with lower z-index and better positioning
-  .emotive-hud-notifications {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    max-width: 280px;
-    z-index: 50; // Much lower z-index - below Foundry's core UI elements
-    background: rgba(0, 0, 0, 0.9);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    pointer-events: auto;
-    
-    // Adjust position when sidebar is expanded
-    body:not(.sidebar-collapsed) & {
-      right: 340px; // Account for sidebar width
-    }
-    
-    .emotive-hud .portrait-container {
-      background: transparent;
-      border: none;
-    }
-    
-    .emotive-hud .hud-controls {
-      background: rgba(0, 0, 0, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      z-index: 5; // Relative to container
-    }
-  }
-
-  // Floating HUD styles (unchanged)
+  // Floating HUD styles
   div#emotive-hud.floating {
     position: fixed;
-    z-index: 45; // Lower than notifications mode
+    z-index: 45;
     pointer-events: none;
     transition: right 0.1s ease;
 
@@ -191,10 +171,11 @@
 
         .control-button {
           @include control-button-base;
+          border: 1px solid #444 !important;
           border-radius: 3px;
 
           &:hover {
-            border-color: $portrait-hover-border;
+            border-color: #ff6400 !important;
           }
 
           i {
@@ -211,14 +192,12 @@
         grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), var(--floatingPortraitWidth));
         width: fit-content;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 1px solid #444 !important;
 
         .portrait {
           aspect-ratio: var(--portrait-ratio);
           width: var(--floatingPortraitWidth);
-
-          &:hover {
-            border-color: $portrait-hover-border;
-          }
+          border: 1px solid #444 !important;
         }
       }
     }
@@ -226,10 +205,10 @@
 
   // Performance optimizations
   @media (prefers-reduced-motion: reduce) {
-    .portrait-container .portrait {
+    .portrait {
       &.flash {
         animation: none;
-        border-color: white;
+        border-color: white !important;
       }
     }
     
