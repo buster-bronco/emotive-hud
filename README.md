@@ -9,22 +9,20 @@
 
 ### Dynamic Portrait HUD
 
-https://github.com/user-attachments/assets/81274e72-7882-483e-97a0-7e796b3f81ca
+https://github.com/user-attachments/assets/85f6f8a5-a154-4cfd-bc25-57e04aa2033c
 
 - **Right-click on a character portrait in the HUD to open the expression picker**
 - Effortlessly switch between character portraits during gameplay for seamless interaction
 
 ### Chat Integration
 
-https://github.com/user-attachments/assets/8b6c4740-c32d-4d1b-b454-55488c14dd9e
+https://github.com/user-attachments/assets/b707a901-11ac-4360-ac1f-1aae7ddff893
 
 - Use `/say` to speak in character with your current portrait
 - Use `/do` to describe actions with your current portrait
 - Compatible with [Chat Commander](https://foundryvtt.com/packages/_chatcommands/)
 
 ### Flexible Layout
-
-https://github.com/user-attachments/assets/d8bf1931-917c-47c9-bba0-002f469a6e60
 
 - Each player can customize their view with adjustable grid columns and portrait width settings
 - Players may also embed the HUD at the top of the chat window
