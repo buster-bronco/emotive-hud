@@ -1,219 +1,108 @@
-@layer module {
-  // Variables
-  $default-border: 1px solid #444; // Use explicit color
-  $default-bg: rgba(0, 0, 0, 0.5);
-  $control-size: 24px;
-  $portrait-hover-border: #ff6400; // Use explicit color
+// Widget-specific styling (replaces the old floating styles)
+.emotive-hud-widget {
+  // Remove all default ApplicationV2 window styling
+  .window-header,
+  .window-content,
+  .window-resizable-handle {
+    display: none !important;
+  }
 
-  // Mixins
-  @mixin center-flex {
+  // Apply original floating widget styles directly to the element
+  position: fixed !important;
+  pointer-events: none;
+  z-index: 100;
+
+  .emotive-hud {
+    position: relative;
     display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  @mixin control-button-base {
-    width: $control-size;
-    height: $control-size;
-    padding: 0;
-    color: var(--color-text-light-highlight, #fff);
-    background: $default-bg;
-    cursor: pointer;
-    @include center-flex;
-    line-height: 1;
-
-    i.fas {
-      @include center-flex;
-      width: 100%;
-      height: 100%;
-      line-height: 0;
-      margin: 0;
-      padding: 0;
-    }
-  }
-
-  @mixin portrait-container-base {
-    display: grid;
-    background: $default-bg;
-    border: $default-border;
-  }
-
-  // Animation definition at root level
-  @keyframes portrait-flash {
-    0% { 
-      border-color: #fff !important;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
-    }
-    100% { 
-      border-color: #444 !important;
-      box-shadow: none;
-    }
-  }
-
-  // Common portrait styles - properly nested
-  .portrait-container {
-    @include portrait-container-base;
-
-    .portrait {
-      border: 1px solid #444;
-      overflow: hidden;
-      position: relative;
-      box-sizing: border-box;
-
-      &.flash {
-        animation: portrait-flash 0.5s ease-out;
-      }
-
-      &:hover {
-        border-color: #ff6400
-      }
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-    }
-  }
-
-  .emotive-hud-embedded {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
     pointer-events: auto;
-    opacity: 1;
 
-    .emotive-hud {
+    .hud-controls {
       display: flex;
       flex-direction: column;
-      font-size: var(--font-size-14, 14px);
-      line-height: 1;
-      position: relative;
-      width: 100%;
+      gap: 4px;
+      align-self: flex-start;
 
-      .portrait-container {
-        @include portrait-container-base;
-        gap: 2px;
-        padding: 8px;
-        border-radius: 4px;
-        grid-template-columns: repeat(var(--grid-columns), 1fr);
-        width: 100%;
-        box-sizing: border-box;
-
-        .portrait {
-          aspect-ratio: var(--portrait-ratio);
-          width: 100%;
-          height: auto;
-          border: 1px solid #444
-        }
-      }
-
-      .hud-controls {
-        position: absolute;
-        right: 8px;
-        top: 8px;
-        display: flex;
-        flex-direction: row;
-        gap: 4px;
-        background: $default-bg;
-        border: $default-border;
-        border-radius: 4px;
-        padding: 4px;
-        z-index: 10;
-
-        .control-button {
-          @include control-button-base;
-          border: none;
-          background: none;
-          
-          i {
-            font-size: 10px;
-          }
-
-          &:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-          }
-        }
-      }
-    }
-  }
-
-  // Sidebar mode
-  .emotive-hud-sidebar {
-    position: relative;
-    margin-bottom: 8px;
-    
-    .emotive-hud .portrait-container {
-      background: $default-bg;
-      border: $default-border;
-    }
-  }
-
-  // Floating HUD styles
-  div#emotive-hud.floating {
-    position: fixed;
-    z-index: 45;
-    pointer-events: none;
-    transition: right 0.1s ease;
-
-    .emotive-hud {
-      position: relative;
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 8px;
-
-      .hud-controls {
-        pointer-events: all;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-self: flex-start;
-
-        .control-button {
-          @include control-button-base;
-          border: 1px solid #444 !important;
-          border-radius: 3px;
-
-          &:hover {
-            border-color: #ff6400 !important;
-          }
-
-          i {
-            font-size: 12px;
-          }
-        }
-      }
-
-      .portrait-container {
-        pointer-events: all;
-        gap: 8px;
-        padding: 16px;
+      .control-button {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        color: var(--color-text-light-highlight);
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--color-border-dark);
         border-radius: 3px;
-        grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), var(--floatingPortraitWidth));
-        width: fit-content;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        border: 1px solid #444 !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
 
-        .portrait {
-          aspect-ratio: var(--portrait-ratio);
-          width: var(--floatingPortraitWidth);
-          border: 1px solid #444 !important;
+        &:hover {
+          border-color: var(--color-border-highlight);
+        }
+
+        &.drag-handle {
+          cursor: grab;
+          
+          &:active {
+            cursor: grabbing;
+          }
+        }
+
+        i {
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          line-height: 0;
+          margin: 0;
+          padding: 0;
         }
       }
     }
-  }
 
-  // Performance optimizations
-  @media (prefers-reduced-motion: reduce) {
-    .portrait {
-      &.flash {
-        animation: none;
-        border-color: white !important;
+    .portrait-container {
+      pointer-events: all;
+      gap: 8px;
+      padding: 16px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--color-border-dark);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: grid;
+      grid-template-columns: repeat(min(var(--portrait-count), var(--grid-columns)), var(--floatingPortraitWidth));
+      width: fit-content;
+
+      .portrait {
+        border: 1px solid var(--color-border-dark);
+        overflow: hidden;
+        aspect-ratio: var(--portrait-ratio);
+        width: var(--floatingPortraitWidth);
+
+        &:hover {
+          border-color: var(--color-border-highlight);
+        }
+
+        &.flash {
+          animation: portrait-flash 0.5s ease-out;
+        }
+
+        @keyframes portrait-flash {
+          0% { border-color: white; }
+          100% { border-color: var(--color-border-dark); }
+        }
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
       }
-    }
-    
-    div#emotive-hud.floating {
-      transition: none;
     }
   }
 }

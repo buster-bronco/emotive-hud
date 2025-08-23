@@ -9,12 +9,15 @@
         </div>
     {{/unless}}
     <div class="hud-controls">
+        <button class="control-button drag-handle" title="Drag to move window" type="button">
+            <i class="fas fa-grip-lines"></i>
+        </button>
         {{#if isGM}}
-            <button class="control-button open-selector" title="Open Emotive HUD Actor Selector">
+            <button class="control-button open-selector" title="Open Emotive HUD Actor Selector" type="button">
                 <i class="fas fa-bars"></i>
             </button>
         {{/if}}
-        <button class="control-button toggle-visibility" title="{{#if isMinimized}}Show{{else}}Hide{{/if}} Emotive HUD">
+        <button class="control-button toggle-visibility" title="{{#if isMinimized}}Show{{else}}Hide{{/if}} Emotive HUD" type="button">
             <i class="fas fa-chevron-{{#if isMinimized}}up{{else}}down{{/if}}"></i>
         </button>
     </div>
