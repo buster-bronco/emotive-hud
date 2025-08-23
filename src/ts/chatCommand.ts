@@ -6,18 +6,18 @@ export function initializeChatCommands(): void {
   // Register native Foundry chat command
   Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
     const command = CONSTANTS.CHAT_COMMAND.SAY;
-    
+
     if (!message.startsWith(command)) return true;
-    
+
     handleEmotiveChatMessage(message.slice(command.length).trim(), false);
     return false;
   });
 
   Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
     const command = CONSTANTS.CHAT_COMMAND.DO;
-    
+
     if (!message.startsWith(command)) return true;
-    
+
     handleEmotiveChatMessage(message.slice(command.length).trim(), true);
     return false;
   });
@@ -25,7 +25,7 @@ export function initializeChatCommands(): void {
   // Register with Chat Commander if available
   Hooks.on('chatCommandsReady', () => {
     const game = getGame() as any;
-    
+
     if (!game.chatCommands) return;
 
     game.chatCommands.register({
@@ -44,27 +44,27 @@ export function initializeChatCommands(): void {
   });
 }
 
-async function handleEmotiveChatMessage(messageText: string, italicize? : boolean): Promise<void> {
+async function handleEmotiveChatMessage(messageText: string, italicize?: boolean): Promise<void> {
   const game = getGame();
   // First try user's assigned character
   let speaker: StoredDocument<Actor> | undefined = game.user?.character;
-  
+
   // If no assigned character, check selected token
   if (!speaker) {
     const controlled = canvas?.tokens?.controlled[0];
     if (controlled?.actor && controlled.actor.id) {  // Ensure actor and id exist
       const hudState = getHUDState();
       const actorUuid = `Actor.${controlled.actor.id}`;
-      
+
       // Check if the selected token's actor is on the HUD
       const isOnHud = hudState.actors.some(a => a.uuid === actorUuid);
-      
+
       if (isOnHud && controlled.actor.testUserPermission(game.user!, "OWNER")) {
         speaker = game.actors!.get(controlled.actor.id) ?? undefined;
       }
     }
   }
-  
+
   if (!speaker) {
     ui.notifications?.warn("You must have a character assigned or select a token you own that is on the Emotive HUD");
     return;

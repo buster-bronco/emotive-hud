@@ -12,13 +12,11 @@
             <i class="fas fa-chevron-{{#if isMinimized}}up{{else}}down{{/if}}"></i>
         </button>
     </div>
-    {{#unless isMinimized}}
-        <div class="portrait-container" style="--portrait-count: {{portraits.length}}; --grid-columns: {{columns}}; --floatingPortraitWidth: {{floatingPortraitWidth}}px">
-            {{#each portraits}}
-            <div class="portrait" data-actor-id="{{actorId}}" style="--portrait-ratio: {{emotivePortraitRatio}}">
-                <img src="{{imgSrc}}" alt="{{name}}">
-            </div>
-            {{/each}}
+    <div class="portrait-container" style="--portrait-count: {{portraits.length}}; --grid-columns: {{columns}}; --floatingPortraitWidth: {{floatingPortraitWidth}}px">
+        {{#each portraits}}
+        <div class="portrait" data-actor-id="{{actorId}}" style="--portrait-ratio: {{emotivePortraitRatio}}">
+            <img src="{{imgSrc}}" alt="{{name}}">
         </div>
-    {{/unless}}
+        {{/each}}
+    </div>
 </div>
