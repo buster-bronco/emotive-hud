@@ -156,6 +156,29 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // Ensure widget positioning after render
     this.updateWidgetPosition();
     this.setupDragging();
+
+    // Set up event listeners using jQuery for compatibility
+    // TODO: Remove this after we convert everything else to V2
+    const html = $(this.element);
+
+    // HUD control buttons
+    html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
+    html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
+
+    // Portrait interactions
+    const portraits = html.find('.portrait');
+
+    portraits.on('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._onPortraitRightClick(event);
+    });
+
+    portraits.on('dblclick', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._onPortraitDoubleClick(event);
+    });
   }
 
   private setupDragging(): void {
@@ -213,29 +236,6 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     };
 
     dragHandle.addEventListener('mousedown', onMouseDown);
-  }
-
-  _activateListeners(html: JQuery): void {
-    super._activateListeners(html);
-
-    // HUD control buttons
-    html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
-    html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
-
-    // Portrait interactions
-    const portraits = html.find('.portrait');
-
-    portraits.on('contextmenu', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this._onPortraitRightClick(event);
-    });
-
-    portraits.on('dblclick', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this._onPortraitDoubleClick(event);
-    });
   }
 
   private async _onPortraitRightClick(event: JQuery.ContextMenuEvent): Promise<void> {
