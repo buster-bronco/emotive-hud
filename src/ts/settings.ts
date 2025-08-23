@@ -42,13 +42,12 @@ export const registerSettings = function() {
     }
   });
 
-  // HACK: the `type` on these settings use type assertion because the latest stable foundry-vtt-types is not up to date with v12
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorLimit', {
     name: "Actor Limit",
     hint: "Maximum number of actors that can be displayed on the Emotive HUD. Warning: Setting this above 9 may make the HUD unwieldy.",
     scope: "world",
     config: true,
-    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 15, step: 1}),
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 15, step: 1 }),
     default: 9,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.actorLimitChanged`, value);
@@ -60,36 +59,19 @@ export const registerSettings = function() {
     hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
     scope: "client",
     config: true,
-    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 1, max: 6, step: 1}),
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 6, step: 1 }),
     default: 3,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
 
-  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudLayout', {
-    name: "HUD Layout",
-    hint: "Choose whether to display the HUD embedded in chat or as a floating window",
-    scope: "client",
-    config: true,
-    type: new (foundry as any).data.fields.StringField({
-      choices: {
-        "embedded": "Embedded in Chat",
-        "floating": "Floating Window"
-      },
-    }),
-    default: "floating",
-    onChange: value => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
-    }
-  });
-
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', {
-    name: "Floating Portrait Width",
-    hint: "The Portrait Width when the HUD is in Floating Mode",
+    name: "Portrait Width",
+    hint: "The Portrait Width for the widget",
     scope: "client",
     config: true,
-    type: new (foundry as any).data.fields.NumberField({nullable: false, integer: true, min: 100, max: 200, step: 25}),
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 100, max: 200, step: 25 }),
     default: 125,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
@@ -101,16 +83,15 @@ export const registerSettings = function() {
     hint: "Set the height ratio for portraits (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
     scope: "world",
     config: true,
-    type: new (foundry as any).data.fields.NumberField({nullable: false, min: 1, max: 2, step: 0.1}),
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, min: 1, max: 2, step: 0.1 }),
     default: 1,
     onChange: value => {
-      emitHUDRefresh(); // referesh portrait ratio for players too
+      emitHUDRefresh();
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
 };
 
-// Helper functions to interact with the settings
 export const getActorConfigs = (): Record<string, ActorConfig> => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
@@ -119,45 +100,38 @@ export const updateActorConfig = async (uuid: string, folderPath: string | undef
   const configs = getActorConfigs();
 
   try {
-    // Only GM can browse files
     if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
 
-    // Initialize the config if it doesn't exist
     if (!configs[uuid]) {
       configs[uuid] = { uuid };
     }
 
-    // If folderPath is undefined or empty, keep existing config unchanged
     if (!folderPath) {
       return;
     }
 
-    // Browsing the folder to get image files
     const browser = await FilePicker.browse("data", folderPath);
     console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
-    
+
     const portraits = browser.files.filter(file => {
       const ext = file.toLowerCase();
-      return ext.endsWith('.jpg') || 
-             ext.endsWith('.jpeg') || 
-             ext.endsWith('.png') || 
-             ext.endsWith('.gif') || 
-             ext.endsWith('.webp');
+      return ext.endsWith('.jpg') ||
+        ext.endsWith('.jpeg') ||
+        ext.endsWith('.png') ||
+        ext.endsWith('.gif') ||
+        ext.endsWith('.webp');
     });
 
     console.log(CONSTANTS.DEBUG_PREFIX, 'Caching following portraits:', portraits);
 
-    // Create updated config
     const updatedConfig = {
       uuid,
       portraitFolder: folderPath,
       cachedPortraits: portraits
     };
 
-    // Update the configs object
     configs[uuid] = updatedConfig;
-    
-    // Save the updated config back to the settings
+
     await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
     console.log(CONSTANTS.DEBUG_PREFIX, 'Actor config updated:', {
       uuid,
@@ -166,8 +140,7 @@ export const updateActorConfig = async (uuid: string, folderPath: string | undef
     });
 
     configs[uuid] = updatedConfig;
-    
-    // Save the updated config back to the settings
+
     await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
     console.log(CONSTANTS.DEBUG_PREFIX, ' actorConfigs updated: ', configs);
   } catch (error) {
@@ -203,20 +176,15 @@ export const getGridColumns = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
 };
 
-export const getHudLayout = (): string => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudLayout') as string;
-};
-
-export const getPortraitRatio = () : number => {
+export const getPortraitRatio = (): number => {
   return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
 }
 
-export const getFloatingPortraitWidth = () : number => {
+export const getFloatingPortraitWidth = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
 }
 
-// Get cached portraits for an actor
 export const getActorPortraits = (uuid: string): string[] => {
-  const configs = getActorConfigs(); 
+  const configs = getActorConfigs();
   return configs[uuid]?.cachedPortraits ?? [];
 };

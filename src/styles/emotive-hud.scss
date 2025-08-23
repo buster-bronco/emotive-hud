@@ -1,4 +1,3 @@
-// Widget-specific styling (replaces the old floating styles)
 .emotive-hud-widget {
   // Remove all default ApplicationV2 window styling
   .window-header,
@@ -7,7 +6,7 @@
     display: none !important;
   }
 
-  // Apply original floating widget styles directly to the element
+  // Widget styles
   position: fixed !important;
   pointer-events: none;
   z-index: 100;

@@ -8,10 +8,11 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2) {
   private minimizeInProgress: boolean = false;
+  private hasCustomPosition: boolean = false;
 
   static DEFAULT_OPTIONS = {
     id: "emotive-hud",
-    classes: ['emotive-hud-widget'], // Use widget-specific class
+    classes: ['emotive-hud-widget'],
     tag: 'div',
     window: {
       frame: false,        // Remove default window frame
@@ -55,32 +56,29 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     });
   }
 
-  // Override to ensure proper positioning as a widget
   _insertElement(element: HTMLElement): void {
-    // Insert directly into body for widget positioning
     document.body.appendChild(element);
 
-    // Apply widget-specific styling immediately
     element.style.position = 'fixed';
     element.style.zIndex = '100';
     element.style.pointerEvents = 'auto';
 
-    // Calculate initial position (right side, accounting for sidebar)
+    // Only set default position on first render
     this.updateWidgetPosition();
   }
 
   private updateWidgetPosition(): void {
-    if (!this.element) return;
+    if (!this.element || this.hasCustomPosition) return; // Don't update if user has custom position
 
     const sidebar = document.getElementById('sidebar');
     const sidebarRect = sidebar?.getBoundingClientRect();
     const isCollapsed = !sidebarRect || sidebarRect.width < 100;
 
-    // Position on right side, accounting for sidebar
     const rightOffset = isCollapsed ? 16 : (sidebarRect?.width || 0) + 16;
 
     this.element.style.right = `${rightOffset}px`;
     this.element.style.top = '16px';
+    this.element.style.left = 'auto'; // Ensure left is auto when using right positioning
   }
 
   private handleMinimizeStateChange(): void {
@@ -153,7 +151,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   _onRender(_context: any, _options: any): void {
-    // Ensure widget positioning after render
+    // Only update position if user hasn't dragged to custom position
     this.updateWidgetPosition();
     this.setupDragging();
 
@@ -161,11 +159,9 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // TODO: Remove this after we convert everything else to V2
     const html = $(this.element);
 
-    // HUD control buttons
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
 
-    // Portrait interactions
     const portraits = html.find('.portrait');
 
     portraits.on('contextmenu', (event) => {
@@ -226,6 +222,9 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       this.element!.style.left = `${Math.max(0, Math.min(maxLeft, newLeft))}px`;
       this.element!.style.top = `${Math.max(0, Math.min(maxTop, newTop))}px`;
       this.element!.style.right = 'auto'; // Override right positioning during drag
+
+      // Mark that user has set a custom position
+      this.hasCustomPosition = true;
     };
 
     const onMouseUp = () => {
@@ -286,13 +285,22 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
-    this.render();
-    setTimeout(() => {
-      const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"]`);
-      if (portrait) {
-        portrait.classList.add('flash');
-        setTimeout(() => portrait.classList.remove('flash'), 500);
+    // Just update the specific portrait image instead of full re-render to avoid position jumping
+    const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"] img`) as HTMLImageElement;
+    if (portrait) {
+      const gameInstance = getGame();
+      const actor = gameInstance.actors?.get(updateData.actorId);
+      if (actor) {
+        const newSrc = this.getActorPortrait(actor);
+        portrait.src = newSrc;
+
+        // Add flash effect
+        const portraitContainer = portrait.closest('.portrait');
+        if (portraitContainer) {
+          portraitContainer.classList.add('flash');
+          setTimeout(() => portraitContainer.classList.remove('flash'), 500);
+        }
       }
-    }, 0);
+    }
   }
 }
