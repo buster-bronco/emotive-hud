@@ -104,4 +104,22 @@
       }
     }
   }
+
+  // Visual snap indicators (shown during drag)
+  &.dragging {
+    .snap-indicator {
+      position: fixed;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px dashed rgba(255, 255, 255, 0.6);
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      
+      &.active {
+        opacity: 1;
+      }
+    }
+  }
 }

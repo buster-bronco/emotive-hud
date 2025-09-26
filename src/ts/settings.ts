@@ -90,6 +90,30 @@ export const registerSettings = function() {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'snapThreshold', {
+    name: "Edge Snap Distance",
+    hint: "How close (in pixels) the HUD needs to be to an edge before it automatically snaps. Set to 0 to disable snapping.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 0, max: 100, step: 10 }),
+    default: 30,
+    onChange: value => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.snapSettingsChanged`, value);
+    }
+  });
+
+  // Store user's preferred HUD position (distance from edges)
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
+    name: 'HUD Position',
+    scope: 'client',
+    config: false,
+    type: Object,
+    default: null, // null means use default positioning
+    onChange: value => {
+      // No hook needed, position is applied on render
+    }
+  });
 };
 
 export const getActorConfigs = (): Record<string, ActorConfig> => {
@@ -187,4 +211,16 @@ export const getFloatingPortraitWidth = (): number => {
 export const getActorPortraits = (uuid: string): string[] => {
   const configs = getActorConfigs();
   return configs[uuid]?.cachedPortraits ?? [];
+};
+
+export const getSnapThreshold = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'snapThreshold') as number;
+};
+
+export const getHUDPosition = (): { left: number; top: number } | null => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudPosition') as { left: number; top: number } | null;
+};
+
+export const setHUDPosition = async (position: { left: number; top: number } | null): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudPosition', position);
 };
