@@ -575,21 +575,22 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
     // Just update the specific portrait image instead of full re-render to avoid position jumping
-    const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"] img`) as HTMLImageElement;
-    if (portrait) {
-      const gameInstance = getGame();
-      const actor = gameInstance.actors?.get(updateData.actorId);
-      if (actor) {
-        const newSrc = this.getActorPortrait(actor);
-        portrait.src = newSrc;
+    // @ts-ignore - ApplicationV2 element access
+    const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"] img`);
+    if (!portrait) return;
 
-        // Add flash effect
-        const portraitContainer = portrait.closest('.portrait');
-        if (portraitContainer) {
-          portraitContainer.classList.add('flash');
-          setTimeout(() => portraitContainer.classList.remove('flash'), 500);
-        }
-      }
+    const gameInstance = getGame();
+    const actor = gameInstance.actors?.get(updateData.actorId);
+    if (!actor) return;
+
+    const newSrc = this.getActorPortrait(actor);
+    portrait.src = newSrc;
+
+    // Add flash effect
+    const portraitContainer = portrait.closest('.portrait');
+    if (portraitContainer) {
+      portraitContainer.classList.add('flash');
+      setTimeout(() => portraitContainer.classList.remove('flash'), 500);
     }
   }
 }

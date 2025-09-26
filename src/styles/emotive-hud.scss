@@ -92,8 +92,16 @@
         }
 
         @keyframes portrait-flash {
-          0% { border-color: white; }
-          100% { border-color: var(--color-border-dark); }
+          0% { 
+            border-color: #ffffff;
+            border-width: 3px;
+            box-shadow: 0 0 10px rgba(204, 204, 201, 0.8);
+          }
+          100% { 
+            border-color: var(--color-border-dark);
+            border-width: 1px;
+            box-shadow: none;
+          }
         }
 
         img {
