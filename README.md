@@ -13,6 +13,7 @@ https://github.com/user-attachments/assets/85f6f8a5-a154-4cfd-bc25-57e04aa2033c
 
 - **Right-click on a character portrait in the HUD to open the expression picker**
 - Effortlessly switch between character portraits during gameplay for seamless interaction
+- **Draggable floating widget** - position the HUD anywhere on your screen
 
 ### Chat Integration
 
@@ -25,7 +26,7 @@ https://github.com/user-attachments/assets/b707a901-11ac-4360-ac1f-1aae7ddff893
 ### Flexible Layout
 
 - Each player can customize their view with adjustable grid columns and portrait width settings
-- Players may also embed the HUD at the top of the chat window
+- Draggable floating window that remembers your preferred position
 - Minimizable interface
 - DMs can set the portrait aspect ratio for the portraits used in game
 
@@ -62,14 +63,15 @@ https://github.com/user-attachments/assets/b707a901-11ac-4360-ac1f-1aae7ddff893
 
 ### Basic Controls
 
+- **Drag Handle**: Use the grip lines icon (☰) to drag the HUD to your preferred position
 - **Toggle HUD**: Click the chevron icon (▼/▲) to minimize/maximize the HUD
 - **Emotive Portrait Picker**: Right-click on a portrait for a character you own to set their portrait
 - **Reset Portrait**: Click "Reset to Default" in the expression picker to return to the default portrait
 
 ### Module Settings
-- **Actor Limit (World)**: Maximum number of actors that can be added to the HUD (default: 15)
-- **Grid Columns (Local)**: Number of columns in the portrait grid (default: 3)
-- **HUD Layout (Local)**: Choose between `Embedded in Chat` or `Floating Window`
+- **Actor Limit (World)**: Maximum number of actors that can be added to the HUD (default: 9, max: 15)
+- **Grid Columns (Client)**: Number of columns in the portrait grid (default: 3)
+- **Portrait Width (Client)**: Width of portraits in the floating widget (default: 125px)
 - **Portrait Height Ratio (World)**: Controls the height-to-width ratio of actor portraits. A ratio of 1 creates square portraits, while 2 makes portraits twice as tall as they are wide.
 
 ## Permissions
@@ -89,6 +91,10 @@ Install FoundryVTT locally, then create an `.env` file in the project root direc
 `FOUNDRY_VTT_PATH="path/to/your/foundry/data/modules/emotive-hud"`
 
 This will allow you to use `npm run dev` to have a hot reloading development environment
+
+## ApplicationV2 Migration
+
+This module is currently being updated to use Foundry VTT's modern ApplicationV2 framework.
 
 ## Acknowledgments
 Used Code Snippets From
