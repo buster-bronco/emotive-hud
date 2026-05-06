@@ -1,6 +1,6 @@
 {
   "name": "emotive-hud",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A expression HUD for FoundryVTT",
   "license": "MIT",
   "private": true,

@@ -74,7 +74,8 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
   const portrait = speaker.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || speaker.img;
 
   // Create chat message content from template
-  const content = await renderTemplate(
+  const renderTemplateV14 = (foundry as any).applications?.handlebars?.renderTemplate ?? renderTemplate;
+  const content = await renderTemplateV14(
     `modules/${CONSTANTS.MODULE_ID}/templates/emotive-chat-message.hbs`,
     {
       portrait,
@@ -86,7 +87,7 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
 
   // Create chat message data
   const chatData = {
-    type: CONST.CHAT_MESSAGE_TYPES.IC,
+    style: (CONST as any).CHAT_MESSAGE_STYLES.IC,
     user: game.user?.id,
     speaker: {
       alias: speaker.name
