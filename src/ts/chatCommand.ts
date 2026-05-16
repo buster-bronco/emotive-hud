@@ -2,46 +2,53 @@ import { CONSTANTS } from "./constants";
 import { getHUDState } from "./settings";
 import { getGame } from "./utils";
 
+type ChatCommandMatch = RegExpMatchArray | RegExpMatchArray[] | string[];
+
+interface ChatCommandPattern {
+  rgx: RegExp;
+  fn: (command: string, match: ChatCommandMatch) => Promise<false>;
+}
+
+interface ChatLogConstructor {
+  CHAT_COMMANDS?: Record<string, ChatCommandPattern>;
+}
+
 export function initializeChatCommands(): void {
-  // Register native Foundry chat command
-  Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
-    const command = CONSTANTS.CHAT_COMMAND.SAY;
+  registerFoundryChatCommands();
+}
 
-    if (!message.startsWith(command)) return true;
+function registerFoundryChatCommands(): void {
+  const chatLogClass = ((CONFIG as any).ui?.chat ?? (foundry as any).applications?.sidebar?.tabs?.ChatLog) as ChatLogConstructor | undefined;
 
-    handleEmotiveChatMessage(message.slice(command.length).trim(), false);
-    return false;
-  });
+  if (!chatLogClass?.CHAT_COMMANDS) return;
 
-  Hooks.on("chatMessage", (_app: any, message: string, _chatData: any) => {
-    const command = CONSTANTS.CHAT_COMMAND.DO;
+  chatLogClass.CHAT_COMMANDS.say = createChatCommand(CONSTANTS.CHAT_COMMAND.SAY, false);
+  chatLogClass.CHAT_COMMANDS.do = createChatCommand(CONSTANTS.CHAT_COMMAND.DO, true);
+}
 
-    if (!message.startsWith(command)) return true;
+function createChatCommand(command: string, italicize: boolean): ChatCommandPattern {
+  return {
+    rgx: new RegExp(`^(${escapeRegExp(command)}(?:\\s+|$))([^]*)`, "i"),
+    fn: async (_command: string, match: ChatCommandMatch): Promise<false> => {
+      await handleEmotiveChatMessage(normalizeChatText(String(match[2] ?? "")), italicize);
+      return false;
+    },
+  };
+}
 
-    handleEmotiveChatMessage(message.slice(command.length).trim(), true);
-    return false;
-  });
+function normalizeChatText(text: string): string {
+  const trimmed = text.trim();
 
-  // Register with Chat Commander if available
-  Hooks.on('chatCommandsReady', () => {
-    const game = getGame() as any;
+  if (!/[<&]/.test(trimmed) || typeof document === "undefined") return trimmed;
 
-    if (!game.chatCommands) return;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = trimmed.replace(/<br\s*\/?>/gi, "\n");
 
-    game.chatCommands.register({
-      name: CONSTANTS.CHAT_COMMAND.SAY,
-      module: CONSTANTS.MODULE_ID,
-      description: "Say something with your character's current emotive portrait",
-      icon: "<i class='fas fa-theater-masks'></i>",
-    });
+  return wrapper.innerText.trim();
+}
 
-    game.chatCommands.register({
-      name: CONSTANTS.CHAT_COMMAND.DO,
-      module: CONSTANTS.MODULE_ID,
-      description: "Do something with your character's current emotive portrait",
-      icon: "<i class='fas fa-theater-masks'></i>",
-    });
-  });
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function handleEmotiveChatMessage(messageText: string, italicize?: boolean): Promise<void> {
@@ -88,7 +95,7 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
   // Create chat message data
   const chatData = {
     style: (CONST as any).CHAT_MESSAGE_STYLES.IC,
-    user: game.user?.id,
+    author: game.user?.id,
     speaker: {
       alias: speaker.name
     },
