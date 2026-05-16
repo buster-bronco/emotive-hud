@@ -1,15 +1,16 @@
 {
   "id": "emotive-hud",
+  "type": "module",
   "title": "Emotive HUD",
   "description": "Adds an expressive character portrait interface",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "media": [],
   "packs": [],
   "scripts": [],
   "socket": true,
   "compatibility": {
-    "minimum": "12",
-    "verified": "13",
-    "maximum": "13"
+    "minimum": "14",
+    "verified": "14"
   },
   "languages": [
     {
