@@ -15,29 +15,6 @@ interface ChatLogConstructor {
 
 export function initializeChatCommands(): void {
   registerFoundryChatCommands();
-  registerLegacyChatMessageHook(CONSTANTS.CHAT_COMMAND.SAY, false);
-  registerLegacyChatMessageHook(CONSTANTS.CHAT_COMMAND.DO, true);
-
-  // Register with Chat Commander if available
-  Hooks.on('chatCommandsReady', () => {
-    const game = getGame() as any;
-
-    if (!game.chatCommands) return;
-
-    game.chatCommands.register({
-      name: CONSTANTS.CHAT_COMMAND.SAY,
-      module: CONSTANTS.MODULE_ID,
-      description: "Say something with your character's current emotive portrait",
-      icon: "<i class='fas fa-theater-masks'></i>",
-    });
-
-    game.chatCommands.register({
-      name: CONSTANTS.CHAT_COMMAND.DO,
-      module: CONSTANTS.MODULE_ID,
-      description: "Do something with your character's current emotive portrait",
-      icon: "<i class='fas fa-theater-masks'></i>",
-    });
-  });
 }
 
 function registerFoundryChatCommands(): void {
@@ -57,26 +34,6 @@ function createChatCommand(command: string, italicize: boolean): ChatCommandPatt
       return false;
     },
   };
-}
-
-function registerLegacyChatMessageHook(command: string, italicize: boolean): void {
-  Hooks.on("chatMessage", (_app: unknown, message: string, _chatData: unknown) => {
-    const messageText = getCommandMessage(message, command);
-
-    if (messageText === null) return true;
-
-    handleEmotiveChatMessage(messageText, italicize).catch((error: Error) => {
-      console.error(`${CONSTANTS.DEBUG_PREFIX} Failed to create emotive chat message`, error);
-      ui.notifications?.error("Failed to create emotive chat message");
-    });
-    return false;
-  });
-}
-
-function getCommandMessage(message: string, command: string): string | null {
-  const match = normalizeChatText(message).match(new RegExp(`^${escapeRegExp(command)}(?:\\s+([^]*)|$)`, "i"));
-
-  return match ? (match[1] ?? "").trim() : null;
 }
 
 function normalizeChatText(text: string): string {
@@ -139,7 +96,6 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
   const chatData = {
     style: (CONST as any).CHAT_MESSAGE_STYLES.IC,
     author: game.user?.id,
-    user: game.user?.id,
     speaker: {
       alias: speaker.name
     },
