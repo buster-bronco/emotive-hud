@@ -53,3 +53,9 @@ export interface ChatCommanderApi {
     callback?: (chat: unknown, parameters: string, messageData: object) => object | null | undefined;
   }): void;
 }
+
+// edge of the viewport the hud is snapped against
+export type DockSide = 'left' | 'right' | 'top' | 'bottom' | null;
+
+// which end of the controls column the toggle stays pinned to
+export type VerticalAnchor = 'top' | 'bottom';

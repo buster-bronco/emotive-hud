@@ -19,6 +19,19 @@
     gap: 8px;
     pointer-events: auto;
 
+    // controls column sits against the docked edge
+    &[data-dock="right"] {
+      flex-direction: row-reverse;
+    }
+
+    &[data-anchor="bottom"] .hud-controls {
+      align-self: flex-end;
+    }
+
+    &.minimized .portrait-container {
+      display: none;
+    }
+
     .hud-controls {
       display: flex;
       flex-direction: column;

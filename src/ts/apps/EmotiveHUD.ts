@@ -1,6 +1,6 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
 import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus } from "../settings";
-import { HUDState } from '../types';
+import { HUDState, DockSide, VerticalAnchor } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
 
@@ -10,6 +10,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private minimizeInProgress: boolean = false;
   private sidebarObserver: ResizeObserver | null = null;
   private hasBeenPositioned: boolean = false;
+  private isAnimating: boolean = false;
+  private dock: { side: DockSide; anchor: VerticalAnchor } = { side: null, anchor: 'top' };
 
   // Constants for positioning and sidebar detection
   private static readonly POSITION_MARGIN = 16;
@@ -18,6 +20,9 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly SIDEBAR_PROXIMITY_THRESHOLD = 100;
   private static readonly SIDEBAR_CHANGE_THRESHOLD = 10;
   private static readonly SIDEBAR_DEBOUNCE_DELAY = 100;
+  private static readonly DOCK_EPSILON = 4;
+  private static readonly COLLAPSE_OFFSET = 16;
+  private static readonly COLLAPSE_DURATION = 200;
 
   // must match .portrait-container padding/border/gap in emotive-hud.scss
   private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
@@ -173,30 +178,133 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     return super.setPosition(position);
   }
 
-  private handleMinimizeStateChange(): void {
-    if (!this.element) {
+  private async handleMinimizeStateChange(): Promise<void> {
+    const hud = this.element?.querySelector('.emotive-hud') as HTMLElement | null;
+    const portraitContainer = this.element?.querySelector('.portrait-container') as HTMLElement | null;
+    if (!this.element || !hud || !portraitContainer) {
       this.minimizeInProgress = false;
       return;
     }
 
     const isMinimized = getIsMinimized();
-    const portraitContainer = this.element.querySelector('.portrait-container') as HTMLElement;
-    const toggleIcon = this.element.querySelector('.toggle-visibility i') as HTMLElement;
-    const toggleButton = this.element.querySelector('.toggle-visibility') as HTMLElement;
+    const before = this.getToggleRect();
+    const hidden = { opacity: 0, transform: this.getCollapseTransform() };
+    const shown = { opacity: 1, transform: 'none' };
 
-    if (portraitContainer && toggleIcon && toggleButton) {
+    this.isAnimating = true;
+    try {
       if (isMinimized) {
-        portraitContainer.style.display = 'none';
-        toggleIcon.className = 'fas fa-chevron-up';
-        toggleButton.setAttribute('title', 'Show Emotive HUD');
+        await portraitContainer.animate([shown, hidden], {
+          duration: EmotiveHUD.COLLAPSE_DURATION,
+          easing: 'ease-in',
+        }).finished;
+        hud.classList.add('minimized');
+        this.pinToggle(before);
       } else {
-        portraitContainer.style.display = '';
-        toggleIcon.className = 'fas fa-chevron-down';
-        toggleButton.setAttribute('title', 'Hide Emotive HUD');
+        hud.classList.remove('minimized');
+        this.pinToggle(before);
+        await portraitContainer.animate([hidden, shown], {
+          duration: EmotiveHUD.COLLAPSE_DURATION,
+          easing: 'ease-out',
+        }).finished;
       }
+      // dock is kept as-is so the toggle doesn't hop mid-interaction
+      this.applyDockState(false);
+    } finally {
+      this.isAnimating = false;
+      this.minimizeInProgress = false;
+    }
+  }
+
+  // sidebar and nav widths eat into the usable viewport edges
+  private getEdgeInsets(): { sidebarWidth: number; navWidth: number } {
+    const sidebarRect = document.getElementById('sidebar')?.getBoundingClientRect();
+    const navRect = document.getElementById('navigation')?.getBoundingClientRect();
+    return {
+      sidebarWidth: sidebarRect && sidebarRect.width > EmotiveHUD.SIDEBAR_MIN_WIDTH ? sidebarRect.width : 0,
+      navWidth: navRect && navRect.width > EmotiveHUD.NAV_MIN_WIDTH ? navRect.width : 0,
+    };
+  }
+
+  // horizontal edges win over vertical ones in corners
+  private getDockSide(): DockSide {
+    if (!this.element) return null;
+
+    const rect = this.element.getBoundingClientRect();
+    const { sidebarWidth, navWidth } = this.getEdgeInsets();
+    const reach = EmotiveHUD.POSITION_MARGIN + EmotiveHUD.DOCK_EPSILON;
+
+    if (rect.right >= window.innerWidth - sidebarWidth - reach) return 'right';
+    if (rect.left <= navWidth + reach) return 'left';
+    if (rect.top <= reach) return 'top';
+    if (rect.bottom >= window.innerHeight - reach) return 'bottom';
+    return null;
+  }
+
+  // floating huds in the lower half open upward like a drop-up
+  private getVerticalAnchor(side: DockSide): VerticalAnchor {
+    if (side === 'top' || side === 'bottom') return side;
+    const toggle = this.getToggleRect();
+    if (!toggle) return 'top';
+
+    return toggle.top + toggle.height / 2 > window.innerHeight / 2 ? 'bottom' : 'top';
+  }
+
+  // chevron direction while expanded; flipped when minimized
+  private getToggleDirection(): 'left' | 'right' | 'up' | 'down' {
+    const { side, anchor } = this.dock;
+    if (side === 'left' || side === 'right') return side;
+    if (side === 'top') return 'up';
+    if (side === 'bottom') return 'down';
+    return anchor === 'top' ? 'down' : 'up';
+  }
+
+  // docked grids slide into their edge; floating ones fold toward the toggle
+  private getCollapseTransform(): string {
+    const offset = EmotiveHUD.COLLAPSE_OFFSET;
+    const { side, anchor } = this.dock;
+    if (side === 'left') return `translateX(-${offset}px)`;
+    if (side === 'right') return `translateX(${offset}px)`;
+    return anchor === 'top' ? `translateY(-${offset}px)` : `translateY(${offset}px)`;
+  }
+
+  // data-dock / data-anchor drive the controls placement in css
+  private applyDockState(recompute: boolean = true): void {
+    const hud = this.element?.querySelector('.emotive-hud') as HTMLElement | null;
+    const toggleIcon = this.element?.querySelector('.toggle-visibility i') as HTMLElement | null;
+    const toggleButton = this.element?.querySelector('.toggle-visibility') as HTMLElement | null;
+    if (!hud || !toggleIcon || !toggleButton) return;
+
+    if (recompute) {
+      const side = this.getDockSide();
+      this.dock = { side, anchor: this.getVerticalAnchor(side) };
     }
 
-    this.minimizeInProgress = false;
+    const isMinimized = getIsMinimized();
+    const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' } as const;
+    const direction = this.getToggleDirection();
+
+    hud.dataset.dock = this.dock.side ?? 'none';
+    hud.dataset.anchor = this.dock.anchor;
+    toggleIcon.className = `fas fa-chevron-${isMinimized ? opposite[direction] : direction}`;
+    toggleButton.setAttribute('title', `${isMinimized ? 'Show' : 'Hide'} Emotive HUD`);
+  }
+
+  private getToggleRect(): DOMRect | null {
+    return this.element?.querySelector('.toggle-visibility')?.getBoundingClientRect() ?? null;
+  }
+
+  // shift the hud so the toggle ends up back under the cursor
+  private pinToggle(before: DOMRect | null): void {
+    const after = this.getToggleRect();
+    if (!this.element || !before || !after) return;
+
+    const rect = this.element.getBoundingClientRect();
+    const left = rect.left + before.left - after.left;
+    const top = rect.top + before.top - after.top;
+
+    this.applyPosition(left, top);
+    setHUDPosition({ left, top });
   }
 
   override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
@@ -246,6 +354,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     this.setupDragging();
     this.setupResizing();
     this.setupSidebarObserver();
+    this.applyDockState();
 
     // Set up event listeners using jQuery for compatibility
     // TODO: Remove this after we convert everything else to V2
@@ -258,6 +367,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // Position after a short delay to ensure ApplicationV2 has finished its positioning logic
     setTimeout(() => {
       this.updateWidgetPosition();
+      this.applyDockState();
     }, 10);
 
     const portraits = html.find('.portrait');
@@ -302,13 +412,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const viewportHeight = window.innerHeight;
 
     // Get sidebar dimensions for more intelligent snapping
-    const sidebar = document.getElementById('sidebar');
-    const sidebarRect = sidebar?.getBoundingClientRect();
-    const sidebarWidth = sidebarRect && sidebarRect.width > EmotiveHUD.SIDEBAR_MIN_WIDTH ? sidebarRect.width : 0;
-
-    const navigation = document.getElementById('navigation');
-    const navRect = navigation?.getBoundingClientRect();
-    const navWidth = navRect && navRect.width > EmotiveHUD.NAV_MIN_WIDTH ? navRect.width : 0;
+    const { sidebarWidth, navWidth } = this.getEdgeInsets();
 
     let snappedLeft = left;
     let snappedTop = top;
@@ -449,6 +553,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (shouldReposition) {
         this.applyPosition(newLeft, rect.top);
         setHUDPosition({ left: newLeft, top: rect.top });
+        this.applyDockState();
       }
     }
   }
@@ -543,6 +648,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (this.element) {
         const rect = this.element.getBoundingClientRect();
         setHUDPosition({ left: rect.left, top: rect.top });
+        this.applyDockState();
       }
     };
 
@@ -631,6 +737,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       if (!this.element) return;
       const rect = this.element.getBoundingClientRect();
+      this.applyDockState();
       await setHUDPosition({ left: rect.left, top: rect.top });
       await setHUDLayout(layout.columns, layout.width);
     };
@@ -695,6 +802,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
+    if (this.isAnimating || this.minimizeInProgress) return;
     this.minimizeInProgress = true;
     const currentState = getIsMinimized();
     await setIsMinimized(!currentState);
