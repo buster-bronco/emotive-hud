@@ -1,4 +1,4 @@
-<div class="emotive-hud">
+<div class="emotive-hud{{#if isMinimized}} minimized{{/if}}">
     <div class="hud-controls">
         <button class="control-button drag-handle" title="Drag to move window" type="button">
             <i class="fas fa-grip-lines"></i>
@@ -18,5 +18,15 @@
             <img src="{{imgSrc}}" alt="{{name}}">
         </div>
         {{/each}}
+        {{#if portraits.length}}
+        <div class="resize-handle" data-corner="nw"></div>
+        <div class="resize-handle" data-corner="ne"></div>
+        <div class="resize-handle" data-corner="sw"></div>
+        <div class="resize-handle" data-corner="se"></div>
+        <div class="resize-handle" data-edge="n"></div>
+        <div class="resize-handle" data-edge="s"></div>
+        <div class="resize-handle" data-edge="e"></div>
+        <div class="resize-handle" data-edge="w"></div>
+        {{/if}}
     </div>
 </div>

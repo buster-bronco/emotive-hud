@@ -1,8 +1,9 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition } from "../settings";
-import { HUDState } from '../types';
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled } from "../settings";
+import { HUDState, DockSide, VerticalAnchor } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
+import { buildActorTooltip } from "../tooltips";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -10,6 +11,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private minimizeInProgress: boolean = false;
   private sidebarObserver: ResizeObserver | null = null;
   private hasBeenPositioned: boolean = false;
+  private isAnimating: boolean = false;
+  private dock: { side: DockSide; anchor: VerticalAnchor } = { side: null, anchor: 'top' };
 
   // Constants for positioning and sidebar detection
   private static readonly POSITION_MARGIN = 16;
@@ -18,8 +21,19 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly SIDEBAR_PROXIMITY_THRESHOLD = 100;
   private static readonly SIDEBAR_CHANGE_THRESHOLD = 10;
   private static readonly SIDEBAR_DEBOUNCE_DELAY = 100;
+  private static readonly DOCK_EPSILON = 4;
+  private static readonly COLLAPSE_OFFSET = 16;
+  private static readonly COLLAPSE_DURATION = 200;
+  private static readonly DRAG_DEAD_ZONE = 4;
+  private static readonly SNAP_RELEASE = 12;
+  private static readonly RESIZE_HYSTERESIS = 12;
 
-  static DEFAULT_OPTIONS = {
+  // must match .portrait-container padding/border/gap in emotive-hud.scss
+  private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
+  private static readonly PORTRAIT_GAP = 8;
+  private static readonly TOOLTIP_DELAY = 300;
+
+  static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
     id: "emotive-hud",
     classes: ['emotive-hud-widget'],
     tag: 'div',
@@ -36,7 +50,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   };
 
-  static PARTS = {
+  static override PARTS = {
     widget: {
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-hud.hbs`
     }
@@ -69,7 +83,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     });
   }
 
-  _insertElement(element: HTMLElement): void {
+  override _insertElement(element: HTMLElement): void {
     document.body.appendChild(element);
 
     element.style.position = 'fixed';
@@ -146,7 +160,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   // Override setPosition to prevent ApplicationV2 from repositioning our widget
-  setPosition(position: any = {}): void {
+  override setPosition(position: any = {}): void {
     console.log('EmotiveHUD: setPosition called with:', position);
 
     // If we haven't been positioned yet, allow normal positioning
@@ -169,33 +183,136 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     return super.setPosition(position);
   }
 
-  private handleMinimizeStateChange(): void {
-    if (!this.element) {
+  private async handleMinimizeStateChange(): Promise<void> {
+    const hud = this.element?.querySelector('.emotive-hud') as HTMLElement | null;
+    const portraitContainer = this.element?.querySelector('.portrait-container') as HTMLElement | null;
+    if (!this.element || !hud || !portraitContainer) {
       this.minimizeInProgress = false;
       return;
     }
 
     const isMinimized = getIsMinimized();
-    const portraitContainer = this.element.querySelector('.portrait-container') as HTMLElement;
-    const toggleIcon = this.element.querySelector('.toggle-visibility i') as HTMLElement;
-    const toggleButton = this.element.querySelector('.toggle-visibility') as HTMLElement;
+    const before = this.getToggleRect();
+    const hidden = { opacity: 0, transform: this.getCollapseTransform() };
+    const shown = { opacity: 1, transform: 'none' };
 
-    if (portraitContainer && toggleIcon && toggleButton) {
+    this.isAnimating = true;
+    try {
       if (isMinimized) {
-        portraitContainer.style.display = 'none';
-        toggleIcon.className = 'fas fa-chevron-up';
-        toggleButton.setAttribute('title', 'Show Emotive HUD');
+        await portraitContainer.animate([shown, hidden], {
+          duration: EmotiveHUD.COLLAPSE_DURATION,
+          easing: 'ease-in',
+        }).finished;
+        hud.classList.add('minimized');
+        this.pinToggle(before);
       } else {
-        portraitContainer.style.display = '';
-        toggleIcon.className = 'fas fa-chevron-down';
-        toggleButton.setAttribute('title', 'Hide Emotive HUD');
+        hud.classList.remove('minimized');
+        this.pinToggle(before);
+        await portraitContainer.animate([hidden, shown], {
+          duration: EmotiveHUD.COLLAPSE_DURATION,
+          easing: 'ease-out',
+        }).finished;
       }
+      // dock is kept as-is so the toggle doesn't hop mid-interaction
+      this.applyDockState(false);
+    } finally {
+      this.isAnimating = false;
+      this.minimizeInProgress = false;
     }
-
-    this.minimizeInProgress = false;
   }
 
-  async _prepareContext(_options: any): Promise<EmotiveHUDData> {
+  // sidebar and nav widths eat into the usable viewport edges
+  private getEdgeInsets(): { sidebarWidth: number; navWidth: number } {
+    const sidebarRect = document.getElementById('sidebar')?.getBoundingClientRect();
+    const navRect = document.getElementById('navigation')?.getBoundingClientRect();
+    return {
+      sidebarWidth: sidebarRect && sidebarRect.width > EmotiveHUD.SIDEBAR_MIN_WIDTH ? sidebarRect.width : 0,
+      navWidth: navRect && navRect.width > EmotiveHUD.NAV_MIN_WIDTH ? navRect.width : 0,
+    };
+  }
+
+  // horizontal edges win over vertical ones in corners
+  private getDockSide(): DockSide {
+    if (!this.element) return null;
+
+    const rect = this.element.getBoundingClientRect();
+    const { sidebarWidth, navWidth } = this.getEdgeInsets();
+    const reach = EmotiveHUD.POSITION_MARGIN + EmotiveHUD.DOCK_EPSILON;
+
+    if (rect.right >= window.innerWidth - sidebarWidth - reach) return 'right';
+    if (rect.left <= navWidth + reach) return 'left';
+    if (rect.top <= reach) return 'top';
+    if (rect.bottom >= window.innerHeight - reach) return 'bottom';
+    return null;
+  }
+
+  // floating huds in the lower half open upward like a drop-up
+  private getVerticalAnchor(side: DockSide): VerticalAnchor {
+    if (side === 'top' || side === 'bottom') return side;
+    const toggle = this.getToggleRect();
+    if (!toggle) return 'top';
+
+    return toggle.top + toggle.height / 2 > window.innerHeight / 2 ? 'bottom' : 'top';
+  }
+
+  // chevron direction while expanded; flipped when minimized
+  private getToggleDirection(): 'left' | 'right' | 'up' | 'down' {
+    const { side, anchor } = this.dock;
+    if (side === 'left' || side === 'right') return side;
+    if (side === 'top') return 'up';
+    if (side === 'bottom') return 'down';
+    return anchor === 'top' ? 'down' : 'up';
+  }
+
+  // docked grids slide into their edge; floating ones fold toward the toggle
+  private getCollapseTransform(): string {
+    const offset = EmotiveHUD.COLLAPSE_OFFSET;
+    const { side, anchor } = this.dock;
+    if (side === 'left') return `translateX(-${offset}px)`;
+    if (side === 'right') return `translateX(${offset}px)`;
+    return anchor === 'top' ? `translateY(-${offset}px)` : `translateY(${offset}px)`;
+  }
+
+  // data-dock / data-anchor drive the controls placement in css
+  private applyDockState(recompute: boolean = true): void {
+    const hud = this.element?.querySelector('.emotive-hud') as HTMLElement | null;
+    const toggleIcon = this.element?.querySelector('.toggle-visibility i') as HTMLElement | null;
+    const toggleButton = this.element?.querySelector('.toggle-visibility') as HTMLElement | null;
+    if (!hud || !toggleIcon || !toggleButton) return;
+
+    if (recompute) {
+      const side = this.getDockSide();
+      this.dock = { side, anchor: this.getVerticalAnchor(side) };
+    }
+
+    const isMinimized = getIsMinimized();
+    const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' } as const;
+    const direction = this.getToggleDirection();
+
+    hud.dataset.dock = this.dock.side ?? 'none';
+    hud.dataset.anchor = this.dock.anchor;
+    toggleIcon.className = `fas fa-chevron-${isMinimized ? opposite[direction] : direction}`;
+    toggleButton.setAttribute('title', `${isMinimized ? 'Show' : 'Hide'} Emotive HUD`);
+  }
+
+  private getToggleRect(): DOMRect | null {
+    return this.element?.querySelector('.toggle-visibility')?.getBoundingClientRect() ?? null;
+  }
+
+  // shift the hud so the toggle ends up back under the cursor
+  private pinToggle(before: DOMRect | null): void {
+    const after = this.getToggleRect();
+    if (!this.element || !before || !after) return;
+
+    const rect = this.element.getBoundingClientRect();
+    const left = rect.left + before.left - after.left;
+    const top = rect.top + before.top - after.top;
+
+    this.applyPosition(left, top);
+    setHUDPosition({ left, top });
+  }
+
+  override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
     const actors = this.getActorsToShow();
     const isMinimized = getIsMinimized();
     const columns = getGridColumns();
@@ -238,9 +355,11 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     return actors;
   }
 
-  _onRender(_context: any, _options: any): void {
+  override async _onRender(_context: any, _options: any): Promise<void> {
     this.setupDragging();
+    this.setupResizing();
     this.setupSidebarObserver();
+    this.applyDockState();
 
     // Set up event listeners using jQuery for compatibility
     // TODO: Remove this after we convert everything else to V2
@@ -253,9 +372,16 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // Position after a short delay to ensure ApplicationV2 has finished its positioning logic
     setTimeout(() => {
       this.updateWidgetPosition();
+      this.applyDockState();
     }, 10);
 
     const portraits = html.find('.portrait');
+
+    portraits.on('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._onPortraitClick(event);
+    });
 
     portraits.on('contextmenu', (event) => {
       event.preventDefault();
@@ -266,11 +392,71 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     portraits.on('dblclick', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      this._onPortraitDoubleClick(event);
+      this._onOpenPortraitSheet(event);
+    });
+
+    // button 1 is middle click; mousedown default starts autoscroll
+    portraits.on('mousedown', (event) => {
+      if (event.button === 1) event.preventDefault();
+    });
+
+    portraits.on('auxclick', (event) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._onOpenPortraitSheet(event);
+    });
+
+    portraits.each((_, portrait) => this.setupPortraitTooltip(portrait));
+  }
+
+  // core tooltip manager handles leave/dismiss once activated on the portrait
+  private setupPortraitTooltip(portrait: HTMLElement): void {
+    let timer: number | undefined;
+
+    portrait.addEventListener('pointerenter', () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => this.showPortraitTooltip(portrait), EmotiveHUD.TOOLTIP_DELAY);
+    });
+
+    portrait.addEventListener('pointerleave', () => window.clearTimeout(timer));
+    portrait.addEventListener('pointerdown', () => window.clearTimeout(timer));
+  }
+
+  private async showPortraitTooltip(portrait: HTMLElement): Promise<void> {
+    if (!getTooltipsEnabled() || !portrait.matches(':hover')) return;
+    if (this.element?.classList.contains('dragging') || this.element?.classList.contains('resizing')) return;
+    if (getModule().emotivePortraitPicker.rendered) return;
+
+    const actor = getGame().actors?.get(portrait.dataset.actorId ?? '');
+    if (!actor) return;
+
+    const html = await buildActorTooltip(actor);
+    // hover may have ended while the template rendered
+    if (!html || !portrait.matches(':hover')) return;
+
+    const tooltip = getGame().tooltip;
+    if (!tooltip) return;
+    tooltip.activate(portrait, {
+      html,
+      cssClass: `emotive-tooltip ${getGame().system?.id ?? ''}`,
+      direction: this.getTooltipDirection(),
     });
   }
 
-  private calculateEdgeSnapping(left: number, top: number, threshold: number): { left: number; top: number } {
+  // open away from the docked edge
+  private getTooltipDirection(): foundry.helpers.interaction.TooltipManager.TOOLTIP_DIRECTIONS | undefined {
+    const directions = foundry.helpers.interaction.TooltipManager.TOOLTIP_DIRECTIONS;
+    switch (this.dock.side) {
+      case 'right': return directions.LEFT;
+      case 'left': return directions.RIGHT;
+      case 'top': return directions.DOWN;
+      case 'bottom': return directions.UP;
+      default: return undefined;
+    }
+  }
+
+  private calculateEdgeSnapping(left: number, top: number, thresholdX: number, thresholdY: number): { left: number; top: number } {
     if (!this.element) return { left, top };
 
     const elementWidth = this.element.offsetWidth;
@@ -279,40 +465,34 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const viewportHeight = window.innerHeight;
 
     // Get sidebar dimensions for more intelligent snapping
-    const sidebar = document.getElementById('sidebar');
-    const sidebarRect = sidebar?.getBoundingClientRect();
-    const sidebarWidth = sidebarRect && sidebarRect.width > EmotiveHUD.SIDEBAR_MIN_WIDTH ? sidebarRect.width : 0;
-
-    const navigation = document.getElementById('navigation');
-    const navRect = navigation?.getBoundingClientRect();
-    const navWidth = navRect && navRect.width > EmotiveHUD.NAV_MIN_WIDTH ? navRect.width : 0;
+    const { sidebarWidth, navWidth } = this.getEdgeInsets();
 
     let snappedLeft = left;
     let snappedTop = top;
 
     // Snap to left edge (considering navigation sidebar)
-    if (left <= navWidth + threshold) {
+    if (left <= navWidth + thresholdX) {
       snappedLeft = navWidth + EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to right edge (considering main sidebar)
-    else if (left + elementWidth >= viewportWidth - sidebarWidth - threshold) {
+    else if (left + elementWidth >= viewportWidth - sidebarWidth - thresholdX) {
       snappedLeft = viewportWidth - sidebarWidth - elementWidth - EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to window left edge if no navigation
-    else if (navWidth === 0 && left <= threshold) {
+    else if (navWidth === 0 && left <= thresholdX) {
       snappedLeft = EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to window right edge if no sidebar
-    else if (sidebarWidth === 0 && left + elementWidth >= viewportWidth - threshold) {
+    else if (sidebarWidth === 0 && left + elementWidth >= viewportWidth - thresholdX) {
       snappedLeft = viewportWidth - elementWidth - EmotiveHUD.POSITION_MARGIN;
     }
 
     // Snap to top edge
-    if (top <= threshold) {
+    if (top <= thresholdY) {
       snappedTop = EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to bottom edge
-    else if (top + elementHeight >= viewportHeight - threshold) {
+    else if (top + elementHeight >= viewportHeight - thresholdY) {
       snappedTop = viewportHeight - elementHeight - EmotiveHUD.POSITION_MARGIN;
     }
 
@@ -426,6 +606,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (shouldReposition) {
         this.applyPosition(newLeft, rect.top);
         setHUDPosition({ left: newLeft, top: rect.top });
+        this.applyDockState();
       }
     }
   }
@@ -439,6 +620,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     if (!dragHandle) return;
 
     let isDragging = false;
+    let moved = false;
+    let snapped = { x: false, y: false };
     let startPos = { x: 0, y: 0 };
     let elementPos = { x: 0, y: 0 };
 
@@ -446,6 +629,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (event.button !== 0) return;
 
       isDragging = true;
+      moved = false;
       startPos.x = event.clientX;
       startPos.y = event.clientY;
 
@@ -453,8 +637,11 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       elementPos.x = rect.left;
       elementPos.y = rect.top;
 
+      // a docked hud starts out stuck to its edge
+      const side = this.getDockSide();
+      snapped = { x: side === 'left' || side === 'right', y: side === 'top' || side === 'bottom' };
+
       dragHandle.style.cursor = 'grabbing';
-      this.element!.classList.add('dragging');
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
 
@@ -467,6 +654,13 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       const deltaX = event.clientX - startPos.x;
       const deltaY = event.clientY - startPos.y;
+
+      // dead zone: ignore small wiggles after pressing the handle
+      if (!moved) {
+        if (Math.hypot(deltaX, deltaY) < EmotiveHUD.DRAG_DEAD_ZONE) return;
+        moved = true;
+        this.element!.classList.add('dragging');
+      }
 
       let newLeft = elementPos.x + deltaX;
       let newTop = elementPos.y + deltaY;
@@ -483,10 +677,19 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       let willSnap = false;
       if (snapThreshold > 0) {
         const originalPosition = { left: newLeft, top: newTop };
-        const snappedPosition = this.calculateEdgeSnapping(newLeft, newTop, snapThreshold);
+        // sticky snap: a snapped axis needs an extra pull to release
+        const release = EmotiveHUD.SNAP_RELEASE;
+        const snappedPosition = this.calculateEdgeSnapping(
+          newLeft,
+          newTop,
+          snapThreshold + (snapped.x ? release : 0),
+          snapThreshold + (snapped.y ? release : 0),
+        );
+
+        snapped = { x: originalPosition.left !== snappedPosition.left, y: originalPosition.top !== snappedPosition.top };
 
         // Check if position will change (indicates snapping will occur)
-        willSnap = originalPosition.left !== snappedPosition.left || originalPosition.top !== snappedPosition.top;
+        willSnap = snapped.x || snapped.y;
 
         if (willSnap) {
           this.showSnapIndicators(snappedPosition.left, snappedPosition.top);
@@ -517,13 +720,136 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       // Save the final position as user preference
       // @ts-ignore - TypeScript types for ApplicationV2 are inconsistent
-      if (this.element) {
+      if (this.element && moved) {
         const rect = this.element.getBoundingClientRect();
         setHUDPosition({ left: rect.left, top: rect.top });
+        this.applyDockState();
       }
     };
 
     dragHandle.addEventListener('mousedown', onMouseDown);
+  }
+
+  // fit-to-box: pick the column count giving the largest portraits inside the box
+  private fitLayout(boxW: number, boxH: number, count: number, aspect: number, prevColumns: number): { columns: number; width: number } {
+    const chrome = EmotiveHUD.CONTAINER_CHROME;
+    const gap = EmotiveHUD.PORTRAIT_GAP;
+
+    const widthFor = (c: number): number => {
+      const rows = Math.ceil(count / c);
+      const wByW = (boxW - chrome - gap * (c - 1)) / c;
+      // aspect is width/height, so height budget converts back to width
+      const wByH = (boxH - chrome - gap * (rows - 1)) / rows * aspect;
+      return Math.min(wByW, wByH);
+    };
+
+    let best = { columns: 1, width: -Infinity };
+    for (let c = 1; c <= count; c++) {
+      const w = widthFor(c);
+      if (w > best.width) best = { columns: c, width: w };
+    }
+
+    // hysteresis: need a clear gain before switching column count
+    const prev = Math.max(1, Math.min(count, prevColumns));
+    const prevWidth = widthFor(prev);
+    if (best.width - prevWidth <= EmotiveHUD.RESIZE_HYSTERESIS) best = { columns: prev, width: prevWidth };
+
+    const width = Math.floor(Math.max(CONSTANTS.MIN_PORTRAIT_WIDTH, Math.min(CONSTANTS.MAX_PORTRAIT_WIDTH, best.width)));
+    return { columns: best.columns, width };
+  }
+
+  // reflow: snap a fractional cell count to an integer with hysteresis
+  private reflowAxis(raw: number, current: number, cellPx: number, count: number): number {
+    if (Math.abs(raw - current) <= 0.5 + EmotiveHUD.RESIZE_HYSTERESIS / cellPx) return current;
+    return Math.max(1, Math.min(count, Math.round(raw)));
+  }
+
+  private setupResizing(): void {
+    if (!this.element) return;
+
+    const container = this.element.querySelector('.portrait-container') as HTMLElement;
+    const handles = this.element.querySelectorAll<HTMLElement>('.resize-handle');
+    if (!container || handles.length === 0) return;
+
+    const count = container.querySelectorAll('.portrait').length;
+    if (count === 0) return;
+
+    let dir = '';
+    let startPos = { x: 0, y: 0 };
+    let startBox = { width: 0, height: 0 };
+    let anchor = { right: 0, bottom: 0 };
+    let layout = { columns: Math.min(count, getGridColumns()), width: getFloatingPortraitWidth() };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+
+      const handle = event.currentTarget as HTMLElement;
+      dir = handle.dataset.corner ?? handle.dataset.edge ?? 'se';
+      startPos = { x: event.clientX, y: event.clientY };
+
+      const boxRect = container.getBoundingClientRect();
+      startBox = { width: boxRect.width, height: boxRect.height };
+
+      const elementRect = this.element!.getBoundingClientRect();
+      anchor = { right: elementRect.right, bottom: elementRect.bottom };
+
+      this.element!.classList.add('resizing');
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      const dx = event.clientX - startPos.x;
+      const dy = event.clientY - startPos.y;
+
+      const boxW = dir.includes('e') ? startBox.width + dx : startBox.width - dx;
+      const boxH = dir.includes('s') ? startBox.height + dy : startBox.height - dy;
+
+      const aspect = getPortraitRatio();
+      const chrome = EmotiveHUD.CONTAINER_CHROME;
+      const gap = EmotiveHUD.PORTRAIT_GAP;
+
+      if (dir.length === 2) {
+        layout = this.fitLayout(boxW, boxH, count, aspect, layout.columns);
+      } else if (dir === 'e' || dir === 'w') {
+        // edge grips keep portrait size and reflow columns
+        const cell = layout.width + gap;
+        const columns = this.reflowAxis((boxW - chrome + gap) / cell, layout.columns, cell, count);
+        layout = { ...layout, columns };
+      } else {
+        const cell = layout.width / aspect + gap;
+        const current = Math.ceil(count / layout.columns);
+        const rows = this.reflowAxis((boxH - chrome + gap) / cell, current, cell, count);
+        if (rows !== current) layout = { ...layout, columns: Math.ceil(count / rows) };
+      }
+
+      // css vars update the grid live without a re-render
+      container.style.setProperty('--grid-columns', `${layout.columns}`);
+      container.style.setProperty('--floatingPortraitWidth', `${layout.width}px`);
+
+      // keep the opposite corner pinned
+      const rect = this.element!.getBoundingClientRect();
+      const left = dir.includes('w') ? anchor.right - this.element!.offsetWidth : rect.left;
+      const top = dir.includes('n') ? anchor.bottom - this.element!.offsetHeight : rect.top;
+      this.applyPosition(left, top);
+    };
+
+    const onMouseUp = async () => {
+      this.element?.classList.remove('resizing');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      if (!this.element) return;
+      const rect = this.element.getBoundingClientRect();
+      this.applyDockState();
+      await setHUDPosition({ left: rect.left, top: rect.top });
+      await setHUDLayout(layout.columns, layout.width);
+    };
+
+    handles.forEach(handle => handle.addEventListener('mousedown', onMouseDown));
   }
 
   private async _onPortraitRightClick(event: JQuery.ContextMenuEvent): Promise<void> {
@@ -539,7 +865,35 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
-  private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
+  private _onPortraitClick(event: JQuery.ClickEvent): void {
+    if (!getClickToFocus()) return;
+
+    const actorId = (event.currentTarget as HTMLElement).dataset.actorId;
+    if (!actorId) return;
+
+    const actor = getGame().actors?.get(actorId);
+    if (!actor || !canvas?.ready) return;
+
+    // getactivetokens() returns this actor's placeables on the viewed scene
+    const tokens = actor.getActiveTokens() as Token[];
+    const token = tokens.find(t => t.isOwner && t.isVisible) ?? tokens.find(t => t.isVisible);
+    if (!token) return;
+
+    // control() selects without targeting; returns false for unowned tokens
+    if (!token.control({ releaseOthers: true })) return;
+    canvas.animatePan({ x: token.center.x, y: token.center.y });
+    this.playFlash(event.currentTarget as HTMLElement, 'focus-flash');
+  }
+
+  private playFlash(element: HTMLElement, className: string): void {
+    // reading offsetWidth forces a reflow so the css animation restarts
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+    element.addEventListener('animationend', () => element.classList.remove(className), { once: true });
+  }
+
+  private async _onOpenPortraitSheet(event: JQuery.TriggeredEvent): Promise<void> {
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
 
@@ -564,6 +918,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
+    if (this.isAnimating || this.minimizeInProgress) return;
     this.minimizeInProgress = true;
     const currentState = getIsMinimized();
     await setIsMinimized(!currentState);
@@ -576,7 +931,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
     // Just update the specific portrait image instead of full re-render to avoid position jumping
     // @ts-ignore - ApplicationV2 element access
-    const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"] img`);
+    const portrait = this.element?.querySelector<HTMLImageElement>(`.portrait[data-actor-id="${updateData.actorId}"] img`);
     if (!portrait) return;
 
     const gameInstance = getGame();
@@ -587,10 +942,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     portrait.src = newSrc;
 
     // Add flash effect
-    const portraitContainer = portrait.closest('.portrait');
-    if (portraitContainer) {
-      portraitContainer.classList.add('flash');
-      setTimeout(() => portraitContainer.classList.remove('flash'), 500);
-    }
+    const portraitContainer = portrait.closest<HTMLElement>('.portrait');
+    if (portraitContainer) this.playFlash(portraitContainer, 'flash');
   }
 }

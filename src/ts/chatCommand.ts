@@ -1,5 +1,6 @@
 import { CONSTANTS } from "./constants";
 import { getHUDState } from "./settings";
+import type { ChatCommanderApi } from "./types";
 import { getGame } from "./utils";
 
 type ChatCommandMatch = RegExpMatchArray | RegExpMatchArray[] | string[];
@@ -14,7 +15,42 @@ interface ChatLogConstructor {
 }
 
 export function initializeChatCommands(): void {
-  registerFoundryChatCommands();
+  // chat commander owns command parsing when active; core chat_commands otherwise
+  if (getGame().modules.get(CONSTANTS.CHAT_COMMANDER_ID)?.active) {
+    Hooks.on("chatCommandsReady", registerChatCommanderCommands);
+  } else {
+    registerFoundryChatCommands();
+  }
+}
+
+function registerChatCommanderCommands(api?: ChatCommanderApi): void {
+  const commands = api ?? ((getGame() as any).chatCommands as ChatCommanderApi | undefined);
+
+  if (!commands) return;
+
+  commands.register({
+    name: CONSTANTS.CHAT_COMMAND.SAY,
+    module: CONSTANTS.MODULE_ID,
+    description: "Say something with your character's current portrait",
+    icon: "<i class='fas fa-theater-masks'></i>",
+    callback: createChatCommanderCallback(false),
+  });
+
+  commands.register({
+    name: CONSTANTS.CHAT_COMMAND.DO,
+    module: CONSTANTS.MODULE_ID,
+    description: "Do something with your character's current portrait",
+    icon: "<i class='fas fa-theater-masks'></i>",
+    callback: createChatCommanderCallback(true),
+  });
+}
+
+function createChatCommanderCallback(italicize: boolean) {
+  return (_chat: unknown, parameters: string): object => {
+    void handleEmotiveChatMessage(normalizeChatText(parameters ?? ""), italicize);
+    // empty object tells chat commander to skip sending the raw message
+    return {};
+  };
 }
 
 function registerFoundryChatCommands(): void {
@@ -54,7 +90,7 @@ function escapeRegExp(text: string): string {
 async function handleEmotiveChatMessage(messageText: string, italicize?: boolean): Promise<void> {
   const game = getGame();
   // First try user's assigned character
-  let speaker: StoredDocument<Actor> | undefined = game.user?.character;
+  let speaker: Actor | null | undefined = game.user?.character;
 
   // If no assigned character, check selected token
   if (!speaker) {

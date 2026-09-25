@@ -39,7 +39,9 @@ module.exports = {
           fs.writeFileSync("dist/style.css", styles);
         }
       },
-      watch: ["src/styles/*.scss"]
+      watch: ["src/styles/*.scss"],
+      // rollup-plugin-scss still calls the legacy sass render api
+      silenceDeprecations: ["legacy-js-api"]
     }),
     copy({
       targets: [

@@ -6,7 +6,7 @@ export const CONSTANTS = {
    * The ID of the module
    * This is derived from module.json to ensure consistency
    */
-  MODULE_ID: id,
+  MODULE_ID: id as "emotive-hud",
 
   /**
    * The display name of the module
@@ -29,7 +29,18 @@ export const CONSTANTS = {
   CHAT_COMMAND: {
     SAY: "/say",
     DO: "/do",
-  }
+  },
+
+  /**
+   * Module id of the chat commander integration
+   */
+  CHAT_COMMANDER_ID: "_chatcommands",
+
+  /**
+   * Portrait width bounds (px) for corner-drag resizing
+   */
+  MIN_PORTRAIT_WIDTH: 60,
+  MAX_PORTRAIT_WIDTH: 400,
 } as const;
 
 export default CONSTANTS;
