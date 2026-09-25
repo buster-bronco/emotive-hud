@@ -879,9 +879,18 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const token = tokens.find(t => t.isOwner && t.isVisible) ?? tokens.find(t => t.isVisible);
     if (!token) return;
 
-    // control() selects without targeting; fails silently for unowned tokens
-    token.control({ releaseOthers: true });
+    // control() selects without targeting; returns false for unowned tokens
+    if (!token.control({ releaseOthers: true })) return;
     canvas.animatePan({ x: token.center.x, y: token.center.y });
+    this.playFlash(event.currentTarget as HTMLElement, 'focus-flash');
+  }
+
+  private playFlash(element: HTMLElement, className: string): void {
+    // reading offsetWidth forces a reflow so the css animation restarts
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+    element.addEventListener('animationend', () => element.classList.remove(className), { once: true });
   }
 
   private async _onOpenPortraitSheet(event: JQuery.TriggeredEvent): Promise<void> {
@@ -934,12 +943,6 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
     // Add flash effect
     const portraitContainer = portrait.closest<HTMLElement>('.portrait');
-    if (portraitContainer) {
-      // reading offsetWidth forces a reflow so the css animation restarts
-      portraitContainer.classList.remove('flash');
-      void portraitContainer.offsetWidth;
-      portraitContainer.classList.add('flash');
-      portraitContainer.addEventListener('animationend', () => portraitContainer.classList.remove('flash'), { once: true });
-    }
+    if (portraitContainer) this.playFlash(portraitContainer, 'flash');
   }
 }

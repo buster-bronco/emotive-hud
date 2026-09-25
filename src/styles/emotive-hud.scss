@@ -119,6 +119,21 @@
           }
         }
 
+        &.focus-flash {
+          animation: portrait-focus-flash 0.35s ease-out;
+        }
+
+        @keyframes portrait-focus-flash {
+          0% {
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 5px rgba(204, 204, 201, 0.4);
+          }
+          100% {
+            border-color: var(--color-border-dark);
+            box-shadow: none;
+          }
+        }
+
         img {
           width: 100%;
           height: 100%;
