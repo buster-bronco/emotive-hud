@@ -24,6 +24,9 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly DOCK_EPSILON = 4;
   private static readonly COLLAPSE_OFFSET = 16;
   private static readonly COLLAPSE_DURATION = 200;
+  private static readonly DRAG_DEAD_ZONE = 4;
+  private static readonly SNAP_RELEASE = 12;
+  private static readonly RESIZE_HYSTERESIS = 12;
 
   // must match .portrait-container padding/border/gap in emotive-hud.scss
   private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
@@ -453,7 +456,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   }
 
-  private calculateEdgeSnapping(left: number, top: number, threshold: number): { left: number; top: number } {
+  private calculateEdgeSnapping(left: number, top: number, thresholdX: number, thresholdY: number): { left: number; top: number } {
     if (!this.element) return { left, top };
 
     const elementWidth = this.element.offsetWidth;
@@ -468,28 +471,28 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     let snappedTop = top;
 
     // Snap to left edge (considering navigation sidebar)
-    if (left <= navWidth + threshold) {
+    if (left <= navWidth + thresholdX) {
       snappedLeft = navWidth + EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to right edge (considering main sidebar)
-    else if (left + elementWidth >= viewportWidth - sidebarWidth - threshold) {
+    else if (left + elementWidth >= viewportWidth - sidebarWidth - thresholdX) {
       snappedLeft = viewportWidth - sidebarWidth - elementWidth - EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to window left edge if no navigation
-    else if (navWidth === 0 && left <= threshold) {
+    else if (navWidth === 0 && left <= thresholdX) {
       snappedLeft = EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to window right edge if no sidebar
-    else if (sidebarWidth === 0 && left + elementWidth >= viewportWidth - threshold) {
+    else if (sidebarWidth === 0 && left + elementWidth >= viewportWidth - thresholdX) {
       snappedLeft = viewportWidth - elementWidth - EmotiveHUD.POSITION_MARGIN;
     }
 
     // Snap to top edge
-    if (top <= threshold) {
+    if (top <= thresholdY) {
       snappedTop = EmotiveHUD.POSITION_MARGIN;
     }
     // Snap to bottom edge
-    else if (top + elementHeight >= viewportHeight - threshold) {
+    else if (top + elementHeight >= viewportHeight - thresholdY) {
       snappedTop = viewportHeight - elementHeight - EmotiveHUD.POSITION_MARGIN;
     }
 
@@ -617,6 +620,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     if (!dragHandle) return;
 
     let isDragging = false;
+    let moved = false;
+    let snapped = { x: false, y: false };
     let startPos = { x: 0, y: 0 };
     let elementPos = { x: 0, y: 0 };
 
@@ -624,6 +629,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (event.button !== 0) return;
 
       isDragging = true;
+      moved = false;
       startPos.x = event.clientX;
       startPos.y = event.clientY;
 
@@ -631,8 +637,11 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       elementPos.x = rect.left;
       elementPos.y = rect.top;
 
+      // a docked hud starts out stuck to its edge
+      const side = this.getDockSide();
+      snapped = { x: side === 'left' || side === 'right', y: side === 'top' || side === 'bottom' };
+
       dragHandle.style.cursor = 'grabbing';
-      this.element!.classList.add('dragging');
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
 
@@ -645,6 +654,13 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       const deltaX = event.clientX - startPos.x;
       const deltaY = event.clientY - startPos.y;
+
+      // dead zone: ignore small wiggles after pressing the handle
+      if (!moved) {
+        if (Math.hypot(deltaX, deltaY) < EmotiveHUD.DRAG_DEAD_ZONE) return;
+        moved = true;
+        this.element!.classList.add('dragging');
+      }
 
       let newLeft = elementPos.x + deltaX;
       let newTop = elementPos.y + deltaY;
@@ -661,10 +677,19 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       let willSnap = false;
       if (snapThreshold > 0) {
         const originalPosition = { left: newLeft, top: newTop };
-        const snappedPosition = this.calculateEdgeSnapping(newLeft, newTop, snapThreshold);
+        // sticky snap: a snapped axis needs an extra pull to release
+        const release = EmotiveHUD.SNAP_RELEASE;
+        const snappedPosition = this.calculateEdgeSnapping(
+          newLeft,
+          newTop,
+          snapThreshold + (snapped.x ? release : 0),
+          snapThreshold + (snapped.y ? release : 0),
+        );
+
+        snapped = { x: originalPosition.left !== snappedPosition.left, y: originalPosition.top !== snappedPosition.top };
 
         // Check if position will change (indicates snapping will occur)
-        willSnap = originalPosition.left !== snappedPosition.left || originalPosition.top !== snappedPosition.top;
+        willSnap = snapped.x || snapped.y;
 
         if (willSnap) {
           this.showSnapIndicators(snappedPosition.left, snappedPosition.top);
@@ -695,7 +720,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       // Save the final position as user preference
       // @ts-ignore - TypeScript types for ApplicationV2 are inconsistent
-      if (this.element) {
+      if (this.element && moved) {
         const rect = this.element.getBoundingClientRect();
         setHUDPosition({ left: rect.left, top: rect.top });
         this.applyDockState();
@@ -706,22 +731,37 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   // fit-to-box: pick the column count giving the largest portraits inside the box
-  private fitLayout(boxW: number, boxH: number, count: number, aspect: number): { columns: number; width: number } {
+  private fitLayout(boxW: number, boxH: number, count: number, aspect: number, prevColumns: number): { columns: number; width: number } {
     const chrome = EmotiveHUD.CONTAINER_CHROME;
     const gap = EmotiveHUD.PORTRAIT_GAP;
 
-    let best = { columns: 1, width: -Infinity };
-    for (let c = 1; c <= count; c++) {
+    const widthFor = (c: number): number => {
       const rows = Math.ceil(count / c);
       const wByW = (boxW - chrome - gap * (c - 1)) / c;
       // aspect is width/height, so height budget converts back to width
       const wByH = (boxH - chrome - gap * (rows - 1)) / rows * aspect;
-      const w = Math.min(wByW, wByH);
+      return Math.min(wByW, wByH);
+    };
+
+    let best = { columns: 1, width: -Infinity };
+    for (let c = 1; c <= count; c++) {
+      const w = widthFor(c);
       if (w > best.width) best = { columns: c, width: w };
     }
 
+    // hysteresis: need a clear gain before switching column count
+    const prev = Math.max(1, Math.min(count, prevColumns));
+    const prevWidth = widthFor(prev);
+    if (best.width - prevWidth <= EmotiveHUD.RESIZE_HYSTERESIS) best = { columns: prev, width: prevWidth };
+
     const width = Math.floor(Math.max(CONSTANTS.MIN_PORTRAIT_WIDTH, Math.min(CONSTANTS.MAX_PORTRAIT_WIDTH, best.width)));
     return { columns: best.columns, width };
+  }
+
+  // reflow: snap a fractional cell count to an integer with hysteresis
+  private reflowAxis(raw: number, current: number, cellPx: number, count: number): number {
+    if (Math.abs(raw - current) <= 0.5 + EmotiveHUD.RESIZE_HYSTERESIS / cellPx) return current;
+    return Math.max(1, Math.min(count, Math.round(raw)));
   }
 
   private setupResizing(): void {
@@ -734,16 +774,17 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const count = container.querySelectorAll('.portrait').length;
     if (count === 0) return;
 
-    let corner = '';
+    let dir = '';
     let startPos = { x: 0, y: 0 };
     let startBox = { width: 0, height: 0 };
     let anchor = { right: 0, bottom: 0 };
-    let layout = { columns: getGridColumns(), width: getFloatingPortraitWidth() };
+    let layout = { columns: Math.min(count, getGridColumns()), width: getFloatingPortraitWidth() };
 
     const onMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
 
-      corner = (event.currentTarget as HTMLElement).dataset.corner ?? 'se';
+      const handle = event.currentTarget as HTMLElement;
+      dir = handle.dataset.corner ?? handle.dataset.edge ?? 'se';
       startPos = { x: event.clientX, y: event.clientY };
 
       const boxRect = container.getBoundingClientRect();
@@ -764,10 +805,26 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       const dx = event.clientX - startPos.x;
       const dy = event.clientY - startPos.y;
 
-      const boxW = corner.includes('e') ? startBox.width + dx : startBox.width - dx;
-      const boxH = corner.includes('s') ? startBox.height + dy : startBox.height - dy;
+      const boxW = dir.includes('e') ? startBox.width + dx : startBox.width - dx;
+      const boxH = dir.includes('s') ? startBox.height + dy : startBox.height - dy;
 
-      layout = this.fitLayout(boxW, boxH, count, getPortraitRatio());
+      const aspect = getPortraitRatio();
+      const chrome = EmotiveHUD.CONTAINER_CHROME;
+      const gap = EmotiveHUD.PORTRAIT_GAP;
+
+      if (dir.length === 2) {
+        layout = this.fitLayout(boxW, boxH, count, aspect, layout.columns);
+      } else if (dir === 'e' || dir === 'w') {
+        // edge grips keep portrait size and reflow columns
+        const cell = layout.width + gap;
+        const columns = this.reflowAxis((boxW - chrome + gap) / cell, layout.columns, cell, count);
+        layout = { ...layout, columns };
+      } else {
+        const cell = layout.width / aspect + gap;
+        const current = Math.ceil(count / layout.columns);
+        const rows = this.reflowAxis((boxH - chrome + gap) / cell, current, cell, count);
+        if (rows !== current) layout = { ...layout, columns: Math.ceil(count / rows) };
+      }
 
       // css vars update the grid live without a re-render
       container.style.setProperty('--grid-columns', `${layout.columns}`);
@@ -775,8 +832,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       // keep the opposite corner pinned
       const rect = this.element!.getBoundingClientRect();
-      const left = corner.includes('w') ? anchor.right - this.element!.offsetWidth : rect.left;
-      const top = corner.includes('n') ? anchor.bottom - this.element!.offsetHeight : rect.top;
+      const left = dir.includes('w') ? anchor.right - this.element!.offsetWidth : rect.left;
+      const top = dir.includes('n') ? anchor.bottom - this.element!.offsetHeight : rect.top;
       this.applyPosition(left, top);
     };
 

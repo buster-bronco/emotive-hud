@@ -141,6 +141,14 @@
         &[data-corner="ne"] { top: 2px; right: 2px; cursor: nesw-resize; border-top-width: 2px; border-right-width: 2px; }
         &[data-corner="sw"] { bottom: 2px; left: 2px; cursor: nesw-resize; border-bottom-width: 2px; border-left-width: 2px; }
         &[data-corner="se"] { bottom: 2px; right: 2px; cursor: nwse-resize; border-bottom-width: 2px; border-right-width: 2px; }
+
+        // edge grips resize one axis
+        &[data-edge="n"], &[data-edge="s"] { left: 50%; width: 24px; transform: translateX(-50%); cursor: ns-resize; }
+        &[data-edge="e"], &[data-edge="w"] { top: 50%; height: 24px; transform: translateY(-50%); cursor: ew-resize; }
+        &[data-edge="n"] { top: 2px; border-top-width: 2px; }
+        &[data-edge="s"] { bottom: 2px; border-bottom-width: 2px; }
+        &[data-edge="e"] { right: 2px; border-right-width: 2px; }
+        &[data-edge="w"] { left: 2px; border-left-width: 2px; }
       }
 
       &:hover .resize-handle {
