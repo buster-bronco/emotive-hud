@@ -229,9 +229,12 @@ export default class EmotiveActorSelector extends Application {
     const dragHandles = html.find(".drag-handle");
     dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));
     
+    // namespaced so each render replaces the old document handlers
     $(document)
-      .on<'mousemove'>('mousemove', this._onDocumentMouseMove.bind(this))
-      .on<'mouseup'>('mouseup', this._onDocumentMouseUp.bind(this));
+      .off("mousemove.actor-selector")
+      .off("mouseup.actor-selector")
+      .on("mousemove.actor-selector", (e) => this._onDocumentMouseMove(e as JQuery.MouseMoveEvent))
+      .on("mouseup.actor-selector", (e) => this._onDocumentMouseUp(e as JQuery.MouseUpEvent));
 
     this._dragDrop.forEach(dd => dd.bind(html[0]));
   }

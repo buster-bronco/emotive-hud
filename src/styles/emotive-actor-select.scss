@@ -150,7 +150,12 @@
       font-family: monospace;
       background: rgba(0, 0, 0, 0.05);
       border-radius: 3px;
-      
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.12);
+      }
+
       &:empty::before {
         content: "No folder selected";
         color: #999;
