@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition } from "../settings";
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout } from "../settings";
 import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
@@ -18,6 +18,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly SIDEBAR_PROXIMITY_THRESHOLD = 100;
   private static readonly SIDEBAR_CHANGE_THRESHOLD = 10;
   private static readonly SIDEBAR_DEBOUNCE_DELAY = 100;
+
+  // must match .portrait-container padding/border/gap in emotive-hud.scss
+  private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
+  private static readonly PORTRAIT_GAP = 8;
 
   static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
     id: "emotive-hud",
@@ -240,6 +244,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   override async _onRender(_context: any, _options: any): Promise<void> {
     this.setupDragging();
+    this.setupResizing();
     this.setupSidebarObserver();
 
     // Set up event listeners using jQuery for compatibility
@@ -524,6 +529,95 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     };
 
     dragHandle.addEventListener('mousedown', onMouseDown);
+  }
+
+  // fit-to-box: pick the column count giving the largest portraits inside the box
+  private fitLayout(boxW: number, boxH: number, count: number, aspect: number): { columns: number; width: number } {
+    const chrome = EmotiveHUD.CONTAINER_CHROME;
+    const gap = EmotiveHUD.PORTRAIT_GAP;
+
+    let best = { columns: 1, width: -Infinity };
+    for (let c = 1; c <= count; c++) {
+      const rows = Math.ceil(count / c);
+      const wByW = (boxW - chrome - gap * (c - 1)) / c;
+      // aspect is width/height, so height budget converts back to width
+      const wByH = (boxH - chrome - gap * (rows - 1)) / rows * aspect;
+      const w = Math.min(wByW, wByH);
+      if (w > best.width) best = { columns: c, width: w };
+    }
+
+    const width = Math.floor(Math.max(CONSTANTS.MIN_PORTRAIT_WIDTH, Math.min(CONSTANTS.MAX_PORTRAIT_WIDTH, best.width)));
+    return { columns: best.columns, width };
+  }
+
+  private setupResizing(): void {
+    if (!this.element) return;
+
+    const container = this.element.querySelector('.portrait-container') as HTMLElement;
+    const handles = this.element.querySelectorAll<HTMLElement>('.resize-handle');
+    if (!container || handles.length === 0 || getIsMinimized()) return;
+
+    const count = container.querySelectorAll('.portrait').length;
+    if (count === 0) return;
+
+    let corner = '';
+    let startPos = { x: 0, y: 0 };
+    let startBox = { width: 0, height: 0 };
+    let anchor = { right: 0, bottom: 0 };
+    let layout = { columns: getGridColumns(), width: getFloatingPortraitWidth() };
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+
+      corner = (event.currentTarget as HTMLElement).dataset.corner ?? 'se';
+      startPos = { x: event.clientX, y: event.clientY };
+
+      const boxRect = container.getBoundingClientRect();
+      startBox = { width: boxRect.width, height: boxRect.height };
+
+      const elementRect = this.element!.getBoundingClientRect();
+      anchor = { right: elementRect.right, bottom: elementRect.bottom };
+
+      this.element!.classList.add('resizing');
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      const dx = event.clientX - startPos.x;
+      const dy = event.clientY - startPos.y;
+
+      const boxW = corner.includes('e') ? startBox.width + dx : startBox.width - dx;
+      const boxH = corner.includes('s') ? startBox.height + dy : startBox.height - dy;
+
+      layout = this.fitLayout(boxW, boxH, count, getPortraitRatio());
+
+      // css vars update the grid live without a re-render
+      container.style.setProperty('--grid-columns', `${layout.columns}`);
+      container.style.setProperty('--floatingPortraitWidth', `${layout.width}px`);
+
+      // keep the opposite corner pinned
+      const rect = this.element!.getBoundingClientRect();
+      const left = corner.includes('w') ? anchor.right - this.element!.offsetWidth : rect.left;
+      const top = corner.includes('n') ? anchor.bottom - this.element!.offsetHeight : rect.top;
+      this.applyPosition(left, top);
+    };
+
+    const onMouseUp = async () => {
+      this.element?.classList.remove('resizing');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      if (!this.element) return;
+      const rect = this.element.getBoundingClientRect();
+      await setHUDPosition({ left: rect.left, top: rect.top });
+      await setHUDLayout(layout.columns, layout.width);
+    };
+
+    handles.forEach(handle => handle.addEventListener('mousedown', onMouseDown));
   }
 
   private async _onPortraitRightClick(event: JQuery.ContextMenuEvent): Promise<void> {

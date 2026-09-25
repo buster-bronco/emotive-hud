@@ -18,5 +18,11 @@
             <img src="{{imgSrc}}" alt="{{name}}">
         </div>
         {{/each}}
+        {{#if portraits.length}}
+        <div class="resize-handle" data-corner="nw"></div>
+        <div class="resize-handle" data-corner="ne"></div>
+        <div class="resize-handle" data-corner="sw"></div>
+        <div class="resize-handle" data-corner="se"></div>
+        {{/if}}
     </div>
 </div>

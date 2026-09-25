@@ -35,6 +35,12 @@ export const CONSTANTS = {
    * Module id of the chat commander integration
    */
   CHAT_COMMANDER_ID: "_chatcommands",
+
+  /**
+   * Portrait width bounds (px) for corner-drag resizing
+   */
+  MIN_PORTRAIT_WIDTH: 60,
+  MAX_PORTRAIT_WIDTH: 400,
 } as const;
 
 export default CONSTANTS;

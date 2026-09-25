@@ -1,5 +1,4 @@
 import { CONSTANTS } from './constants';
-import { emitHUDRefresh } from './sockets';
 import { ActorConfig, HUDState } from './types';
 import { getGame } from './utils';
 
@@ -54,12 +53,12 @@ export const registerSettings = function() {
     }
   });
 
+  // columns and portrait width are set by dragging the hud corners
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'gridColumns', {
     name: "Grid Columns",
-    hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
     scope: "client",
-    config: true,
-    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 6, step: 1 }),
+    config: false,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 15 }),
     default: 3,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
@@ -68,10 +67,9 @@ export const registerSettings = function() {
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', {
     name: "Portrait Width",
-    hint: "The Portrait Width for the widget",
     scope: "client",
-    config: true,
-    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 100, max: 200, step: 25 }),
+    config: false,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: CONSTANTS.MIN_PORTRAIT_WIDTH, max: CONSTANTS.MAX_PORTRAIT_WIDTH }),
     default: 125,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
@@ -80,13 +78,12 @@ export const registerSettings = function() {
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'portraitRatio', {
     name: "Portrait Height Ratio",
-    hint: "Set the height ratio for portraits (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
-    scope: "world",
+    hint: "Height ratio for portraits on your HUD (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
+    scope: "client",
     config: true,
     type: new (foundry as any).data.fields.NumberField({ nullable: false, min: 1, max: 2, step: 0.1 }),
     default: 1,
     onChange: value => {
-      emitHUDRefresh();
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
@@ -205,7 +202,13 @@ export const getFloatingPortraitWidth = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
 }
 
-export const getActorPortraits = (uuid: string): string[] => {
+export const setHUDLayout = async (columns: number, width: number): Promise<void> => {
+  const settings = getGame().settings;
+  await settings.set(CONSTANTS.MODULE_ID, 'gridColumns', columns);
+  await settings.set(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', width);
+}
+
+export const getActorPortraits =(uuid: string): string[] => {
   const configs = getActorConfigs();
   return configs[uuid]?.cachedPortraits ?? [];
 };

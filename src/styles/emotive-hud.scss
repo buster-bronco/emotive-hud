@@ -66,6 +66,7 @@
     }
 
     .portrait-container {
+      position: relative;
       pointer-events: all;
       gap: 8px;
       padding: 16px;
@@ -110,6 +111,35 @@
           object-fit: cover;
         }
       }
+
+      // corner grips for resizing
+      .resize-handle {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        border-color: var(--color-border-highlight);
+        border-style: solid;
+        border-width: 0;
+
+        &[data-corner="nw"] { top: 2px; left: 2px; cursor: nwse-resize; border-top-width: 2px; border-left-width: 2px; }
+        &[data-corner="ne"] { top: 2px; right: 2px; cursor: nesw-resize; border-top-width: 2px; border-right-width: 2px; }
+        &[data-corner="sw"] { bottom: 2px; left: 2px; cursor: nesw-resize; border-bottom-width: 2px; border-left-width: 2px; }
+        &[data-corner="se"] { bottom: 2px; right: 2px; cursor: nwse-resize; border-bottom-width: 2px; border-right-width: 2px; }
+      }
+
+      &:hover .resize-handle {
+        opacity: 1;
+      }
+    }
+  }
+
+  &.resizing {
+    user-select: none;
+
+    .resize-handle {
+      opacity: 1;
     }
   }
 
