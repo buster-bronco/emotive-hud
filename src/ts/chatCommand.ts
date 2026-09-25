@@ -54,7 +54,7 @@ function escapeRegExp(text: string): string {
 async function handleEmotiveChatMessage(messageText: string, italicize?: boolean): Promise<void> {
   const game = getGame();
   // First try user's assigned character
-  let speaker: StoredDocument<Actor> | undefined = game.user?.character;
+  let speaker: Actor | null | undefined = game.user?.character;
 
   // If no assigned character, check selected token
   if (!speaker) {

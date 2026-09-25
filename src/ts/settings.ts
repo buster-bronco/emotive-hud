@@ -110,9 +110,6 @@ export const registerSettings = function() {
     config: false,
     type: Object,
     default: null, // null means use default positioning
-    onChange: value => {
-      // No hook needed, position is applied on render
-    }
   });
 };
 

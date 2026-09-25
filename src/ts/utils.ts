@@ -63,16 +63,19 @@ export function getModule(): EmotiveHudModule {
  * Safely gets the value of a game setting.
  * @throws if the game instance isn't available
  */
-export function getGameSetting<T>(key: string): T {
+export function getGameSetting<K extends foundry.helpers.ClientSettings.KeyFor<typeof CONSTANTS.MODULE_ID>>(key: K) {
   const gameInstance = getGame();
-  return gameInstance.settings.get(CONSTANTS.MODULE_ID, key) as T;
+  return gameInstance.settings.get(CONSTANTS.MODULE_ID, key);
 }
 
 /**
  * Safely sets a game setting value.
  * @throws if the game instance isn't available
  */
-export async function setGameSetting<T>(key: string, value: T): Promise<void> {
+export async function setGameSetting<K extends foundry.helpers.ClientSettings.KeyFor<typeof CONSTANTS.MODULE_ID>>(
+  key: K,
+  value: foundry.helpers.ClientSettings.SettingCreateData<typeof CONSTANTS.MODULE_ID, K>
+): Promise<void> {
   const gameInstance = getGame();
   await gameInstance.settings.set(CONSTANTS.MODULE_ID, key, value);
 }

@@ -1,15 +1,14 @@
-import { ModuleData } from "@league-of-foundry-developers/foundry-vtt-types/src/foundry/common/packages.mjs";
 import EmotiveHUD from "./apps/EmotiveHUD";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 
-export interface EmotiveHudModule extends Game.ModuleData<ModuleData> {
+export interface EmotiveHudModule extends foundry.packages.Module {
   emotiveActorSelector: EmotiveActorSelector;
   emotiveHUD: EmotiveHUD;
   emotivePortraitPicker: EmotivePortraitPicker;
 }
 
-export interface EmotiveHUDData {
+export interface EmotiveHUDData extends foundry.applications.api.ApplicationV2.RenderContext {
   isGM: boolean,
   columns: number;
   isMinimized: boolean;
@@ -36,9 +35,9 @@ export interface ActorConfig {
   cachedPortraits?: string[];
 }
 
-export interface HUDState {
+export type HUDState = {
   actors: {
     uuid: string;
     position: number; // Index/position on the Emotive HUD
   }[];
-}
+};

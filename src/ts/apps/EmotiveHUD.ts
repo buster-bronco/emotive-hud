@@ -19,7 +19,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly SIDEBAR_CHANGE_THRESHOLD = 10;
   private static readonly SIDEBAR_DEBOUNCE_DELAY = 100;
 
-  static DEFAULT_OPTIONS = {
+  static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
     id: "emotive-hud",
     classes: ['emotive-hud-widget'],
     tag: 'div',
@@ -36,7 +36,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   };
 
-  static PARTS = {
+  static override PARTS = {
     widget: {
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-hud.hbs`
     }
@@ -69,7 +69,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     });
   }
 
-  _insertElement(element: HTMLElement): void {
+  override _insertElement(element: HTMLElement): void {
     document.body.appendChild(element);
 
     element.style.position = 'fixed';
@@ -146,7 +146,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   // Override setPosition to prevent ApplicationV2 from repositioning our widget
-  setPosition(position: any = {}): void {
+  override setPosition(position: any = {}): void {
     console.log('EmotiveHUD: setPosition called with:', position);
 
     // If we haven't been positioned yet, allow normal positioning
@@ -195,7 +195,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     this.minimizeInProgress = false;
   }
 
-  async _prepareContext(_options: any): Promise<EmotiveHUDData> {
+  override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
     const actors = this.getActorsToShow();
     const isMinimized = getIsMinimized();
     const columns = getGridColumns();
@@ -238,7 +238,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     return actors;
   }
 
-  _onRender(_context: any, _options: any): void {
+  override async _onRender(_context: any, _options: any): Promise<void> {
     this.setupDragging();
     this.setupSidebarObserver();
 
@@ -576,7 +576,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   public handlePortraitUpdate(updateData: PortraitUpdateData): void {
     // Just update the specific portrait image instead of full re-render to avoid position jumping
     // @ts-ignore - ApplicationV2 element access
-    const portrait = this.element?.querySelector(`.portrait[data-actor-id="${updateData.actorId}"] img`);
+    const portrait = this.element?.querySelector<HTMLImageElement>(`.portrait[data-actor-id="${updateData.actorId}"] img`);
     if (!portrait) return;
 
     const gameInstance = getGame();

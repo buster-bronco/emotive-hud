@@ -22,8 +22,8 @@ export default class EmotiveActorSelector extends Application {
         dragSelector: ".actor-item",
         dropSelector: ".drag-area",
         permissions: {
-          dragstart: (selector: string | undefined) => this._canDragStart(selector),
-          drop: (selector: string | undefined) => this._canDragDrop(selector)
+          dragstart: (selector: DragDrop.DragSelector) => this._canDragStart(selector),
+          drop: (selector: DragDrop.DragSelector) => this._canDragDrop(selector)
         },
         callbacks: {
           dragstart: this._onDragStart.bind(this),
@@ -49,12 +49,12 @@ export default class EmotiveActorSelector extends Application {
       });
   }
 
-  protected override _canDragStart(selector: string | undefined): boolean {
+  protected override _canDragStart(selector: DragDrop.DragSelector): boolean {
     if (!selector) return false;
     return true;
   }
   
-  protected override _canDragDrop(selector: string | undefined): boolean {
+  protected override _canDragDrop(selector: DragDrop.DragSelector): boolean {
     if (!selector) return false;
     return true;
   }
@@ -155,16 +155,16 @@ export default class EmotiveActorSelector extends Application {
   }
 
   override get title(): string {
-    return getGame().i18n.localize("EMOTIVEHUD.emotive-actor-selector");
+    return getGame().i18n!.localize("EMOTIVEHUD.emotive-actor-selector");
   }
 
-  static override get defaultOptions(): ApplicationOptions {
+  static override get defaultOptions(): Application.Options {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "expressive-actor-select",
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-actor-select.hbs`,
       width: 720,
       height: 720,
-    }) as ApplicationOptions;
+    }) as Application.Options;
   }
 
   protected override _getHeaderButtons(): Application.HeaderButton[] {

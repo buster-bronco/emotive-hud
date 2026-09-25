@@ -16,7 +16,7 @@ export default class EmotivePortraitPicker extends Application {
     super(options);
   }
 
-  static override get defaultOptions(): ApplicationOptions {
+  static override get defaultOptions(): Application.Options {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "emotive-portrait-picker",
       template: `modules/${CONSTANTS.MODULE_ID}/templates/emotion-picker.hbs`,
@@ -26,7 +26,7 @@ export default class EmotivePortraitPicker extends Application {
       resizable: false,
       width: "auto",
       height: "auto"
-    }) as ApplicationOptions;
+    }) as unknown as Application.Options;
   }
 
   async showForActor(actorId: string, anchor: HTMLElement): Promise<void> {
@@ -143,8 +143,8 @@ export default class EmotivePortraitPicker extends Application {
     }
   }
 
-  override async render(force?: boolean, options?: Application.RenderOptions): Promise<this> {
-    await super.render(force, options);
+  override render(force?: boolean, options?: Application.RenderOptions): this {
+    super.render(force, options);
 
     this._removeClickOutsideHandler();
 
