@@ -109,6 +109,15 @@ export const registerSettings = function() {
     default: 2,
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'confirmFolderSync', {
+    name: "Confirm Portrait Folder Sync",
+    hint: "Show a warning before syncing an actor's portrait folder, since syncing resets that actor's excluded portraits.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
@@ -187,6 +196,22 @@ export const saveActorFolders = async (entries: { uuid: string; portraitFolder?:
   if (changed) await saveActorConfigs(configs);
 };
 
+// sync rescans each folder and clears its excluded portraits
+export const syncActorConfigs = async (entries: { uuid: string; portraitFolder?: string }[]): Promise<number> => {
+  if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+
+  const configs = cloneActorConfigs();
+  const targets = entries.filter(entry => entry.portraitFolder);
+
+  await Promise.all(targets.map(async ({ uuid, portraitFolder }) => {
+    const portraits = await scanPortraitFolder(portraitFolder!);
+    configs[uuid] = { uuid, portraitFolder, cachedPortraits: portraits, excludedPortraits: [] };
+  }));
+
+  if (targets.length) await saveActorConfigs(configs);
+  return targets.length;
+};
+
 // excluded portraits are hidden from the hud picker; used for duplicate files
 export const setPortraitExcluded = async (uuid: string, path: string, excluded: boolean): Promise<void> => {
   const configs = cloneActorConfigs();
@@ -229,6 +254,14 @@ export const getGridColumns = (): number => {
 
 export const getSelectorPreviewRows = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'selectorPreviewRows') as number;
+};
+
+export const getConfirmFolderSync = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'confirmFolderSync') as boolean;
+};
+
+export const setConfirmFolderSync = async (value: boolean): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'confirmFolderSync', value);
 };
 
 export const getPortraitRatio = (): number => {

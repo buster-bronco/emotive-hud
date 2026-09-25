@@ -1,5 +1,5 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getActorLimit, getHUDState, getSelectorPreviewRows, saveActorFolders, setHUDState, setPortraitExcluded, updateActorConfig } from "../settings";
+import { getActorConfigs, getActorLimit, getConfirmFolderSync, getHUDState, getSelectorPreviewRows, saveActorFolders, setConfirmFolderSync, setHUDState, setPortraitExcluded, syncActorConfigs, updateActorConfig } from "../settings";
 import { ActorConfig } from '../types';
 import { emitHUDRefresh, emitPortraitUpdated } from "../sockets";
 import { getGame, getModule } from "../utils";
@@ -259,6 +259,58 @@ export default class EmotiveActorSelector extends Application {
     }
   }
 
+  // dialogv2.wait resolves with the clicked button's callback result, or null on close
+  private async _confirmFolderSync(): Promise<boolean> {
+    if (!getConfirmFolderSync()) return true;
+
+    const result = await foundry.applications.api.DialogV2.wait({
+      window: { title: "Sync Portrait Folder" },
+      content: `
+        <p>Syncing will rescan this folder and reset all excluded portraits for this actor.</p>
+        <label><input type="checkbox" name="dontShow"> Don't show this again</label>
+      `,
+      buttons: [
+        {
+          action: "proceed",
+          label: "Proceed",
+          default: true,
+          callback: (_event, button) => {
+            const box = button.form?.elements.namedItem("dontShow") as HTMLInputElement | null;
+            return box?.checked ? "proceed-hide" : "proceed";
+          }
+        },
+        { action: "cancel", label: "Cancel" }
+      ],
+      rejectClose: false
+    });
+
+    if (result === "proceed-hide") await setConfirmFolderSync(false);
+    return result === "proceed" || result === "proceed-hide";
+  }
+
+  private async _onSyncPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    const uuid = $(event.currentTarget).data('uuid');
+    const actor = this.selectedActors.find(a => a.uuid === uuid);
+    if (!actor) return;
+
+    if (!actor.portraitFolder) {
+      ui.notifications?.warn("Select a portrait folder before syncing");
+      return;
+    }
+
+    if (!(await this._confirmFolderSync())) return;
+
+    try {
+      await syncActorConfigs([actor]);
+      ui.notifications?.info("Portrait folder synced");
+      this.render(false);
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error syncing portrait folder:', error);
+      ui.notifications?.error("Failed to sync portrait folder");
+    }
+  }
+
   private async _onToggleExcluded(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
@@ -308,6 +360,9 @@ export default class EmotiveActorSelector extends Application {
 
     html.find
       (".import-portraits").on("click", this._onImportPortraits.bind(this));
+
+    html.find(".sync-portrait-folder")
+      .on("click", this._onSyncPortraitFolder.bind(this));
       
     html.find(".actor-portrait.clickable")
       .on("click", this._onClickActorPortrait.bind(this));

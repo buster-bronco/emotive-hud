@@ -15,6 +15,7 @@ declare global {
     "emotive-hud.snapThreshold": number;
     "emotive-hud.hudPosition": HUDPosition;
     "emotive-hud.selectorPreviewRows": number;
+    "emotive-hud.confirmFolderSync": boolean;
   }
 
   // document flag shapes keyed by document name then scope
