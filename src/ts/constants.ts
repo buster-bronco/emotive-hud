@@ -6,7 +6,7 @@ export const CONSTANTS = {
    * The ID of the module
    * This is derived from module.json to ensure consistency
    */
-  MODULE_ID: id,
+  MODULE_ID: id as "emotive-hud",
 
   /**
    * The display name of the module
