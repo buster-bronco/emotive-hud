@@ -127,6 +127,25 @@ export const registerSettings = function() {
     default: true,
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'tooltipsEnabled', {
+    name: "Show Portrait Tooltips",
+    hint: "Hovering a portrait shows a card with that actor's stats. The GM picks which stats appear.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  // "scope.fieldid" -> shown; missing keys fall back to the field default
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'tooltipFields', {
+    name: 'Tooltip Fields',
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {} as Record<string, boolean>,
+  });
+
+
   // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
@@ -307,4 +326,15 @@ export const getHUDPosition = (): { left: number; top: number } | null => {
 
 export const setHUDPosition = async (position: { left: number; top: number } | null): Promise<void> => {
   await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudPosition', position);
+};
+export const getTooltipsEnabled = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipsEnabled') as boolean;
+};
+
+export const getTooltipFieldToggles = (): Record<string, boolean> => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipFields') as Record<string, boolean>;
+};
+
+export const setTooltipFieldToggles = async (toggles: Record<string, boolean>): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'tooltipFields', toggles);
 };

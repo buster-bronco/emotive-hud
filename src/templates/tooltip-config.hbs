@@ -1,0 +1,20 @@
+<div class="tooltip-config-body">
+    <div class="standard-form">
+        <fieldset>
+            <legend>{{systemTitle}}</legend>
+            {{#each fields}}
+            <div class="form-group">
+                <label for="emotive-tooltip-{{key}}">{{label}}</label>
+                <div class="form-fields">
+                    <input type="checkbox" id="emotive-tooltip-{{key}}" name="{{key}}" {{checked enabled}}>
+                </div>
+            </div>
+            {{else}}
+            <p class="hint">No tooltip fields are available for {{systemTitle}}.</p>
+            {{/each}}
+        </fieldset>
+    </div>
+    <footer class="form-footer">
+        <button type="submit"><i class="fas fa-save"></i> Save</button>
+    </footer>
+</div>

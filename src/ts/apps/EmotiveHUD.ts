@@ -1,8 +1,9 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus } from "../settings";
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled } from "../settings";
 import { HUDState, DockSide, VerticalAnchor } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
+import { buildActorTooltip } from "../tooltips";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -27,6 +28,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   // must match .portrait-container padding/border/gap in emotive-hud.scss
   private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
   private static readonly PORTRAIT_GAP = 8;
+  private static readonly TOOLTIP_DELAY = 300;
 
   static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
     id: "emotive-hud",
@@ -401,6 +403,54 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       event.stopPropagation();
       this._onOpenPortraitSheet(event);
     });
+
+    portraits.each((_, portrait) => this.setupPortraitTooltip(portrait));
+  }
+
+  // core tooltip manager handles leave/dismiss once activated on the portrait
+  private setupPortraitTooltip(portrait: HTMLElement): void {
+    let timer: number | undefined;
+
+    portrait.addEventListener('pointerenter', () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => this.showPortraitTooltip(portrait), EmotiveHUD.TOOLTIP_DELAY);
+    });
+
+    portrait.addEventListener('pointerleave', () => window.clearTimeout(timer));
+    portrait.addEventListener('pointerdown', () => window.clearTimeout(timer));
+  }
+
+  private async showPortraitTooltip(portrait: HTMLElement): Promise<void> {
+    if (!getTooltipsEnabled() || !portrait.matches(':hover')) return;
+    if (this.element?.classList.contains('dragging') || this.element?.classList.contains('resizing')) return;
+    if (getModule().emotivePortraitPicker.rendered) return;
+
+    const actor = getGame().actors?.get(portrait.dataset.actorId ?? '');
+    if (!actor) return;
+
+    const html = await buildActorTooltip(actor);
+    // hover may have ended while the template rendered
+    if (!html || !portrait.matches(':hover')) return;
+
+    const tooltip = getGame().tooltip;
+    if (!tooltip) return;
+    tooltip.activate(portrait, {
+      html,
+      cssClass: `emotive-tooltip ${getGame().system?.id ?? ''}`,
+      direction: this.getTooltipDirection(),
+    });
+  }
+
+  // open away from the docked edge
+  private getTooltipDirection(): foundry.helpers.interaction.TooltipManager.TOOLTIP_DIRECTIONS | undefined {
+    const directions = foundry.helpers.interaction.TooltipManager.TOOLTIP_DIRECTIONS;
+    switch (this.dock.side) {
+      case 'right': return directions.LEFT;
+      case 'left': return directions.RIGHT;
+      case 'top': return directions.DOWN;
+      case 'bottom': return directions.UP;
+      default: return undefined;
+    }
   }
 
   private calculateEdgeSnapping(left: number, top: number, threshold: number): { left: number; top: number } {

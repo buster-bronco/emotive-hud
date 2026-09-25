@@ -73,6 +73,20 @@ https://github.com/user-attachments/assets/b707a901-11ac-4360-ac1f-1aae7ddff893
 - **Grid Columns (Client)**: Number of columns in the portrait grid (default: 3)
 - **Portrait Width (Client)**: Width of portraits in the floating widget (default: 125px)
 - **Portrait Height Ratio (World)**: Controls the height-to-width ratio of actor portraits. A ratio of 1 creates square portraits, while 2 makes portraits twice as tall as they are wide.
+- **Show Portrait Tooltips (Client)**: Show actor stats when hovering a portrait
+- **Portrait Tooltip Fields (World)**: Choose which stats the tooltip shows (Pathfinder 2e built in)
+
+### Tooltip API
+
+```js
+Hooks.once("emotive-hud.registerTooltipFields", (api) => {
+  api.registerSystemFields("dnd5e", [
+    { id: "ac", label: "Armor Class", render: (actor) => ({ kind: "stat", label: "AC", value: actor.system.attributes.ac.value }) },
+  ]);
+});
+```
+
+`render` returns a section, an array of sections, or `null`. Kinds: `stat`, `bar`, `icons`, `list`, `table` (see `TooltipSection` in `src/ts/types.ts`).
 
 ## Permissions
 
