@@ -66,6 +66,11 @@
       background: rgba(0, 0, 0, 0.2);
     }
 
+    &.file-drop-target {
+      outline: 2px dashed #4CAF50;
+      outline-offset: -2px;
+    }
+
     &.expanded .emote-strip-wrapper {
       display: block;
     }

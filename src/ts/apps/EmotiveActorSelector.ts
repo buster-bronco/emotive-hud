@@ -4,6 +4,8 @@ import { ActorConfig } from '../types';
 import { emitHUDRefresh, emitPortraitUpdated } from "../sockets";
 import { getGame, getModule } from "../utils";
 
+const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
 export default class EmotiveActorSelector extends Application {
   private selectedActors: ActorConfig[] = [];
   protected override _dragDrop: DragDrop[] = [];
@@ -79,9 +81,16 @@ export default class EmotiveActorSelector extends Application {
 
   protected _onDragDrop(event: DragEvent): void {
     if (!event.dataTransfer) return;
-    
+
+    if (event.dataTransfer.files.length) {
+      this._onDropFiles(event, Array.from(event.dataTransfer.files));
+      return;
+    }
+
     try {
-      const data = JSON.parse(event.dataTransfer.getData("text/plain"));
+      const raw = event.dataTransfer.getData("text/plain");
+      if (!raw) return;
+      const data = JSON.parse(raw);
       const actorLimit = getActorLimit();
       
       if (data.type === "Actor" && data.uuid) {
@@ -115,6 +124,26 @@ export default class EmotiveActorSelector extends Application {
     } catch (err) {
       console.error(CONSTANTS.DEBUG_PREFIX, "Error processing drop:", err);
     }
+  }
+
+  // os file drops carry files but no text payload
+  private _onDropFiles(event: DragEvent, files: File[]): void {
+    const row = (event.target as HTMLElement).closest<HTMLElement>(".selected-actor");
+    this.element.find(".file-drop-target").removeClass("file-drop-target");
+
+    const actor = this.selectedActors.find(a => a.uuid === row?.dataset.uuid);
+    if (!actor) {
+      ui.notifications?.warn("Drop portraits onto an actor row");
+      return;
+    }
+
+    const images = files.filter(file => this._isPortraitFile(file));
+    if (images.length < files.length) {
+      ui.notifications?.warn(`Skipped ${files.length - images.length} non-image file(s)`);
+    }
+    if (!images.length) return;
+
+    this._uploadPortraits(actor, images);
   }
 
   private async _onSelectPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
@@ -376,6 +405,10 @@ export default class EmotiveActorSelector extends Application {
     html.find(".emote-strip .exclude-portrait")
       .on("click", this._onToggleExcluded.bind(this));
 
+    html.find(".selected-actor")
+      .on("dragover", this._onRowFileDragOver.bind(this))
+      .on("dragleave", this._onRowFileDragLeave.bind(this));
+
     const dragHandles = html.find(".drag-handle");
     dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));
     
@@ -403,71 +436,76 @@ export default class EmotiveActorSelector extends Application {
     const uuid = $(event.currentTarget).data('uuid');
     const actor = this.selectedActors.find(a => a.uuid === uuid);
     if (!actor) return;
-  
-    // Get actor details
-    const gameActor = await fromUuid(actor.uuid) as Actor;
-    if (!gameActor) return;
-  
-    // Determine target folder path
-    let targetFolder = actor.portraitFolder;
-    if (!targetFolder) {
-      const baseFolder = 'emotive-hud-portraits';
-      const actorFolder = gameActor.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_actor';
-      
-      // Create base folder if it doesn't exist
-      try {
-        await FilePicker.createDirectory('data', baseFolder);
-      } catch (err) {
-        console.log(CONSTANTS.DEBUG_PREFIX, err);
-      }
-  
-      // Create actor folder if it doesn't exist
-      targetFolder = `${baseFolder}/${actorFolder}`;
-      try {
-        await FilePicker.createDirectory('data', targetFolder);
-      } catch (err) {
-        console.log(CONSTANTS.DEBUG_PREFIX, err);
-      }
-  
-      // Update the actor's folder path
-      actor.portraitFolder = targetFolder;
-    }
-  
-    // Create file input and handle upload
+
+    // hidden file input opens the os file dialog
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = '.jpg,.jpeg,.png,.webp,.gif';
-    
-    input.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (!target.files?.length) return;
-      
-      try {
-        // Upload each file
-        for (const file of Array.from(target.files)) {
-          const response = await fetch(URL.createObjectURL(file));
-          const blob = await response.blob();
-          
-          // Create file in Foundry VTT
-          await FilePicker.upload('data', targetFolder, new File([blob], file.name));
-          console.log(`${CONSTANTS.DEBUG_PREFIX} Uploaded:`, file.name);
-        }
-  
-        // Update the actor config with new folder
-        await updateActorConfig(actor.uuid, targetFolder);
-        
-        ui.notifications?.info(`Successfully imported ${target.files.length} portraits`);
-        
-        // Refresh the display
-        this.render(false);
-      } catch (error) {
-        console.error(`${CONSTANTS.DEBUG_PREFIX} Error uploading files:`, error);
-        ui.notifications?.error("Failed to upload one or more portraits");
-      }
+    input.accept = PORTRAIT_EXTENSIONS.join(',');
+
+    input.onchange = async () => {
+      if (!input.files?.length) return;
+      await this._uploadPortraits(actor, Array.from(input.files));
     };
-  
+
     input.click();
+  }
+
+  private async _uploadPortraits(actor: ActorConfig, files: File[]): Promise<void> {
+    const gameActor = await fromUuid(actor.uuid) as Actor;
+    if (!gameActor) return;
+
+    try {
+      let targetFolder = actor.portraitFolder;
+      if (!targetFolder) {
+        const baseFolder = 'emotive-hud-portraits';
+        const actorFolder = gameActor.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_actor';
+        targetFolder = `${baseFolder}/${actorFolder}`;
+
+        // createdirectory throws when the folder already exists
+        for (const folder of [baseFolder, targetFolder]) {
+          try {
+            await FilePicker.createDirectory('data', folder);
+          } catch (err) {
+            console.log(CONSTANTS.DEBUG_PREFIX, err);
+          }
+        }
+
+        actor.portraitFolder = targetFolder;
+      }
+
+      for (const file of files) {
+        await FilePicker.upload('data', targetFolder, file);
+        console.log(`${CONSTANTS.DEBUG_PREFIX} Uploaded:`, file.name);
+      }
+
+      await updateActorConfig(actor.uuid, targetFolder);
+      ui.notifications?.info(`Successfully imported ${files.length} portraits`);
+      this.render(false);
+    } catch (error) {
+      console.error(`${CONSTANTS.DEBUG_PREFIX} Error uploading files:`, error);
+      ui.notifications?.error("Failed to upload one or more portraits");
+    }
+  }
+
+  private _isPortraitFile(file: File): boolean {
+    const name = file.name.toLowerCase();
+    return PORTRAIT_EXTENSIONS.some(ext => name.endsWith(ext));
+  }
+
+  // browsers only allow a drop when dragover calls preventdefault
+  private _onRowFileDragOver(event: JQuery.DragOverEvent): void {
+    const types = event.originalEvent?.dataTransfer?.types;
+    if (!types || !Array.from(types).includes("Files")) return;
+    event.preventDefault();
+    $(event.currentTarget).addClass("file-drop-target");
+  }
+
+  private _onRowFileDragLeave(event: JQuery.DragLeaveEvent): void {
+    const row = event.currentTarget as HTMLElement;
+    const related = (event.originalEvent as DragEvent | undefined)?.relatedTarget as Node | null;
+    if (related && row.contains(related)) return;
+    row.classList.remove("file-drop-target");
   }
 
   private _onDragHandleMouseDown(event: JQuery.MouseDownEvent): void {
