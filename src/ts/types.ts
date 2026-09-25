@@ -33,6 +33,7 @@ export interface ActorConfig {
   uuid: string;
   portraitFolder?: string;
   cachedPortraits?: string[];
+  excludedPortraits?: string[];
 }
 
 export type HUDState = {

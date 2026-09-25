@@ -1,5 +1,5 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getActorLimit, getHUDState, getSelectorPreviewRows, setHUDState, updateActorConfig } from "../settings";
+import { getActorConfigs, getActorLimit, getHUDState, getSelectorPreviewRows, saveActorFolders, setHUDState, setPortraitExcluded, updateActorConfig } from "../settings";
 import { ActorConfig } from '../types';
 import { emitHUDRefresh, emitPortraitUpdated } from "../sockets";
 import { getGame, getModule } from "../utils";
@@ -198,6 +198,7 @@ export default class EmotiveActorSelector extends Application {
         const actor = await fromUuid(actorRef.uuid) as Actor;
         const currentPortrait = actor?.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
         const cached = configs[actorRef.uuid]?.cachedPortraits ?? [];
+        const excluded = new Set(configs[actorRef.uuid]?.excludedPortraits ?? []);
         return {
           ...actorRef,
           name: actor?.name,
@@ -207,7 +208,8 @@ export default class EmotiveActorSelector extends Application {
           portraits: cached.map(path => ({
             path,
             name: path.split('/').pop()?.split('.')[0] || 'Unknown',
-            current: path === currentPortrait
+            current: path === currentPortrait,
+            excluded: excluded.has(path)
           }))
         };
       })
@@ -237,6 +239,7 @@ export default class EmotiveActorSelector extends Application {
   private async _onSelectEmote(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     const itemEl = $(event.currentTarget);
+    if (itemEl.hasClass("excluded")) return;
     const path = itemEl.data("path") as string;
     const uuid = itemEl.closest(".selected-actor").data("uuid") as string;
     if (!path || !uuid) return;
@@ -253,6 +256,41 @@ export default class EmotiveActorSelector extends Application {
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
       ui.notifications?.error("Failed to update portrait");
+    }
+  }
+
+  private async _onToggleExcluded(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    const itemEl = $(event.currentTarget).closest(".emote-item");
+    const path = itemEl.data("path") as string;
+    const uuid = itemEl.closest(".selected-actor").data("uuid") as string;
+    if (!path || !uuid) return;
+
+    const exclude = !itemEl.hasClass("excluded");
+
+    try {
+      await setPortraitExcluded(uuid, path, exclude);
+
+      itemEl.toggleClass("excluded", exclude);
+      itemEl.find(".exclude-portrait")
+        .attr("title", exclude ? "Restore portrait" : "Exclude portrait")
+        .find("i")
+        .toggleClass("fa-xmark", !exclude)
+        .toggleClass("fa-rotate-left", exclude);
+
+      // an excluded current emote falls back to the actor's default image
+      if (exclude && itemEl.hasClass("current")) {
+        const actor = await fromUuid(uuid) as Actor;
+        if (actor?.id) {
+          await actor.unsetFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
+          emitPortraitUpdated(actor.id);
+        }
+        itemEl.removeClass("current");
+      }
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error excluding portrait:', error);
+      ui.notifications?.error("Failed to update excluded portraits");
     }
   }
 
@@ -279,6 +317,9 @@ export default class EmotiveActorSelector extends Application {
 
     html.find(".emote-strip .emote-item")
       .on("click", this._onSelectEmote.bind(this));
+
+    html.find(".emote-strip .exclude-portrait")
+      .on("click", this._onToggleExcluded.bind(this));
 
     const dragHandles = html.find(".drag-handle");
     dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));
@@ -472,12 +513,8 @@ export default class EmotiveActorSelector extends Application {
     event.preventDefault();
     
     try {
-      // Update all actor configs in parallel
-      const configUpdatePromises = this.selectedActors
-        .map(actor => updateActorConfig(actor.uuid, actor.portraitFolder));
-      
-      // Wait for all updates to complete
-      await Promise.all(configUpdatePromises);
+      // one settings write; unchanged folders skip the rescan
+      await saveActorFolders(this.selectedActors);
 
       // Update HUD state with current actors and their positions
       const hudState = {

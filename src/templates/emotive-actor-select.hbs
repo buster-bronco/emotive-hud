@@ -27,8 +27,11 @@
                 {{#if this.portraits.length}}
                   <div class="emote-strip" style="--rows: {{../previewRows}}">
                     {{#each this.portraits}}
-                      <div class="emote-item{{#if this.current}} current{{/if}}" data-path="{{this.path}}" title="{{this.name}}">
+                      <div class="emote-item{{#if this.current}} current{{/if}}{{#if this.excluded}} excluded{{/if}}" data-path="{{this.path}}" title="{{this.name}}">
                         <img src="{{this.path}}" alt="{{this.name}}" loading="lazy"/>
+                        <a class="exclude-portrait" title="{{#if this.excluded}}Restore portrait{{else}}Exclude portrait{{/if}}">
+                          <i class="fas {{#if this.excluded}}fa-rotate-left{{else}}fa-xmark{{/if}}"></i>
+                        </a>
                       </div>
                     {{/each}}
                   </div>

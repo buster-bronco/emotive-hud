@@ -123,57 +123,81 @@ export const getActorConfigs = (): Record<string, ActorConfig> => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
 
-export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
-  const configs = getActorConfigs();
+const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
+// filepicker.browse lists a data folder; keep only image files
+export const scanPortraitFolder = async (folderPath: string): Promise<string[]> => {
+  const browser = await FilePicker.browse("data", folderPath);
+  console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
+  return browser.files.filter(file => {
+    const lower = file.toLowerCase();
+    return PORTRAIT_EXTENSIONS.some(ext => lower.endsWith(ext));
+  });
+};
+
+// settings.get can hand back the cached object; clone before mutating
+const cloneActorConfigs = (): Record<string, ActorConfig> => {
+  return foundry.utils.deepClone(getActorConfigs());
+};
+
+const saveActorConfigs = async (configs: Record<string, ActorConfig>): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  console.log(CONSTANTS.DEBUG_PREFIX, 'actorConfigs updated:', configs);
+};
+
+// rescans a folder into cachedportraits; exclusions survive only if the folder is unchanged
+const buildActorConfig = async (existing: ActorConfig | undefined, uuid: string, folderPath: string): Promise<ActorConfig> => {
+  const portraits = await scanPortraitFolder(folderPath);
+  const sameFolder = existing?.portraitFolder === folderPath;
+  const excluded = sameFolder
+    ? (existing?.excludedPortraits ?? []).filter(path => portraits.includes(path))
+    : [];
+  return { uuid, portraitFolder: folderPath, cachedPortraits: portraits, excludedPortraits: excluded };
+};
+
+export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
   try {
     if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+    if (!folderPath) return;
 
-    if (!configs[uuid]) {
-      configs[uuid] = { uuid };
-    }
-
-    if (!folderPath) {
-      return;
-    }
-
-    const browser = await FilePicker.browse("data", folderPath);
-    console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
-
-    const portraits = browser.files.filter(file => {
-      const ext = file.toLowerCase();
-      return ext.endsWith('.jpg') ||
-        ext.endsWith('.jpeg') ||
-        ext.endsWith('.png') ||
-        ext.endsWith('.gif') ||
-        ext.endsWith('.webp');
-    });
-
-    console.log(CONSTANTS.DEBUG_PREFIX, 'Caching following portraits:', portraits);
-
-    const updatedConfig = {
-      uuid,
-      portraitFolder: folderPath,
-      cachedPortraits: portraits
-    };
-
-    configs[uuid] = updatedConfig;
-
-    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-    console.log(CONSTANTS.DEBUG_PREFIX, 'Actor config updated:', {
-      uuid,
-      config: updatedConfig,
-      allConfigs: configs
-    });
-
-    configs[uuid] = updatedConfig;
-
-    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-    console.log(CONSTANTS.DEBUG_PREFIX, ' actorConfigs updated: ', configs);
+    const configs = cloneActorConfigs();
+    configs[uuid] = await buildActorConfig(configs[uuid], uuid, folderPath);
+    await saveActorConfigs(configs);
   } catch (error) {
     console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating actor config:', error);
     throw error;
   }
+};
+
+// batch save for apply; only folders that changed get rescanned
+export const saveActorFolders = async (entries: { uuid: string; portraitFolder?: string }[]): Promise<void> => {
+  if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+
+  const configs = cloneActorConfigs();
+  let changed = false;
+
+  await Promise.all(entries.map(async ({ uuid, portraitFolder }) => {
+    if (!portraitFolder) return;
+    const existing = configs[uuid];
+    if (existing?.portraitFolder === portraitFolder && existing.cachedPortraits) return;
+    configs[uuid] = await buildActorConfig(existing, uuid, portraitFolder);
+    changed = true;
+  }));
+
+  if (changed) await saveActorConfigs(configs);
+};
+
+// excluded portraits are hidden from the hud picker; used for duplicate files
+export const setPortraitExcluded = async (uuid: string, path: string, excluded: boolean): Promise<void> => {
+  const configs = cloneActorConfigs();
+  const config = configs[uuid] ?? { uuid };
+  const current = new Set(config.excludedPortraits ?? []);
+
+  if (excluded) current.add(path);
+  else current.delete(path);
+
+  configs[uuid] = { ...config, excludedPortraits: Array.from(current) };
+  await saveActorConfigs(configs);
 };
 
 export const getHUDState = (): HUDState => {
@@ -221,9 +245,10 @@ export const setHUDLayout = async (columns: number, width: number): Promise<void
   await settings.set(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', width);
 }
 
-export const getActorPortraits =(uuid: string): string[] => {
-  const configs = getActorConfigs();
-  return configs[uuid]?.cachedPortraits ?? [];
+export const getActorPortraits = (uuid: string): string[] => {
+  const config = getActorConfigs()[uuid];
+  const excluded = new Set(config?.excludedPortraits ?? []);
+  return (config?.cachedPortraits ?? []).filter(path => !excluded.has(path));
 };
 
 export const getSnapThreshold = (): number => {

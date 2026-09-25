@@ -109,8 +109,53 @@
         border-color: #999;
       }
 
+      position: relative;
+
       &.current {
         border-color: #4CAF50;
+      }
+
+      &.excluded {
+        cursor: default;
+
+        img {
+          opacity: 0.3;
+          filter: grayscale(1);
+        }
+      }
+
+      .exclude-portrait {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        z-index: 1;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 11px;
+        text-decoration: none;
+        opacity: 0.5;
+        cursor: pointer;
+
+        &:hover {
+          background: #ff4444;
+          color: #fff;
+          text-shadow: none;
+        }
+      }
+
+      &:hover .exclude-portrait,
+      &.excluded .exclude-portrait {
+        opacity: 1;
+      }
+
+      &.excluded .exclude-portrait:hover {
+        background: #4CAF50;
       }
 
       img {
