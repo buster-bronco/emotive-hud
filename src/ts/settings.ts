@@ -100,6 +100,15 @@ export const registerSettings = function() {
     }
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'selectorPreviewRows', {
+    name: "Actor Selector Emote Rows",
+    hint: "Number of rows in the emote strip shown when expanding an actor in the actor selector.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 4, step: 1 }),
+    default: 2,
+  });
+
   // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
@@ -192,6 +201,10 @@ export const getActorLimit = (): number => {
 
 export const getGridColumns = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
+};
+
+export const getSelectorPreviewRows = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'selectorPreviewRows') as number;
 };
 
 export const getPortraitRatio = (): number => {

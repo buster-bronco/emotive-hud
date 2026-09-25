@@ -1,7 +1,7 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getActorLimit, getHUDState, setHUDState, updateActorConfig } from "../settings";
+import { getActorConfigs, getActorLimit, getHUDState, getSelectorPreviewRows, setHUDState, updateActorConfig } from "../settings";
 import { ActorConfig } from '../types';
-import { emitHUDRefresh } from "../sockets";
+import { emitHUDRefresh, emitPortraitUpdated } from "../sockets";
 import { getGame, getModule } from "../utils";
 
 export default class EmotiveActorSelector extends Application {
@@ -10,7 +10,9 @@ export default class EmotiveActorSelector extends Application {
   private draggedItem: HTMLElement | null = null;
   private dragStartY: number = 0;
   private dropTargetIndex: number | null = null;
-  
+  // uuids whose emote strip is open, kept across re-renders
+  private expanded = new Set<string>();
+
   constructor(options = {}) {
     super(options);
 
@@ -189,14 +191,24 @@ export default class EmotiveActorSelector extends Application {
   }
 
   override async getData() {
+    const configs = getActorConfigs();
+
     const enrichedActors = await Promise.all(
       this.selectedActors.map(async (actorRef) => {
         const actor = await fromUuid(actorRef.uuid) as Actor;
+        const currentPortrait = actor?.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
+        const cached = configs[actorRef.uuid]?.cachedPortraits ?? [];
         return {
           ...actorRef,
           name: actor?.name,
           img: actor?.img,
-          portraitFolder: actorRef.portraitFolder || ""
+          portraitFolder: actorRef.portraitFolder || "",
+          expanded: this.expanded.has(actorRef.uuid),
+          portraits: cached.map(path => ({
+            path,
+            name: path.split('/').pop()?.split('.')[0] || 'Unknown',
+            current: path === currentPortrait
+          }))
         };
       })
     );
@@ -205,7 +217,43 @@ export default class EmotiveActorSelector extends Application {
 
     return {
       selectedActors: enrichedActors,
+      previewRows: getSelectorPreviewRows(),
     };
+  }
+
+  private _onToggleEmoteStrip(event: JQuery.ClickEvent): void {
+    // clicks on the row's own controls keep their normal behavior
+    if ($(event.target).closest("button, .drag-handle, .actor-portrait, .portrait-path").length) return;
+
+    const item = $(event.currentTarget).closest(".selected-actor");
+    const uuid = item.data("uuid") as string;
+    if (!uuid) return;
+
+    const isOpen = item.toggleClass("expanded").hasClass("expanded");
+    if (isOpen) this.expanded.add(uuid);
+    else this.expanded.delete(uuid);
+  }
+
+  private async _onSelectEmote(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    const itemEl = $(event.currentTarget);
+    const path = itemEl.data("path") as string;
+    const uuid = itemEl.closest(".selected-actor").data("uuid") as string;
+    if (!path || !uuid) return;
+
+    try {
+      const actor = await fromUuid(uuid) as Actor;
+      if (!actor?.id) throw new Error("Actor not found");
+
+      await actor.setFlag(CONSTANTS.MODULE_ID, 'currentPortrait', path);
+      emitPortraitUpdated(actor.id);
+
+      itemEl.siblings(".emote-item").removeClass("current");
+      itemEl.addClass("current");
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
+      ui.notifications?.error("Failed to update portrait");
+    }
   }
 
   override activateListeners(html: JQuery<HTMLElement>): void {
@@ -225,6 +273,12 @@ export default class EmotiveActorSelector extends Application {
       
     html.find(".actor-portrait.clickable")
       .on("click", this._onClickActorPortrait.bind(this));
+
+    html.find(".selected-actor .actor-row")
+      .on("click", this._onToggleEmoteStrip.bind(this));
+
+    html.find(".emote-strip .emote-item")
+      .on("click", this._onSelectEmote.bind(this));
 
     const dragHandles = html.find(".drag-handle");
     dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));

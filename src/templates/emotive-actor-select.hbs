@@ -5,22 +5,37 @@
       {{#if selectedActors.length}}
         <ul class="selected-actors-list">
           {{#each selectedActors}}
-            <li class="selected-actor" data-uuid="{{this.uuid}}">
-              <div class="drag-handle">
-                <i class="fas fa-grip-lines"></i>
+            <li class="selected-actor{{#if this.expanded}} expanded{{/if}}" data-uuid="{{this.uuid}}">
+              <div class="actor-row" title="Click to show emotes">
+                <div class="drag-handle">
+                  <i class="fas fa-grip-lines"></i>
+                </div>
+                <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}" title="Open {{this.name}}'s sheet"/>
+                <span class="actor-name">{{this.name}}</span>
+                <div class="portrait-controls">
+                  <button class="portrait-control-btn import-portraits" data-uuid="{{this.uuid}}" title="Import Portrait Files">
+                    <i class="fas fa-file-upload"></i>
+                  </button>
+                  <button class="portrait-control-btn select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">
+                    <i class="fas fa-folder"></i>
+                  </button>
+                  <span class="portrait-path select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">{{this.portraitFolder}}</span>
+                </div>
+                <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
               </div>
-              <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}" title="Open {{this.name}}'s sheet"/>
-              <span class="actor-name">{{this.name}}</span>
-              <div class="portrait-controls">
-                <button class="portrait-control-btn import-portraits" data-uuid="{{this.uuid}}" title="Import Portrait Files">
-                  <i class="fas fa-file-upload"></i>
-                </button>
-                <button class="portrait-control-btn select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">
-                  <i class="fas fa-folder"></i>
-                </button>
-                <span class="portrait-path select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">{{this.portraitFolder}}</span>
+              <div class="emote-strip-wrapper">
+                {{#if this.portraits.length}}
+                  <div class="emote-strip" style="--rows: {{../previewRows}}">
+                    {{#each this.portraits}}
+                      <div class="emote-item{{#if this.current}} current{{/if}}" data-path="{{this.path}}" title="{{this.name}}">
+                        <img src="{{this.path}}" alt="{{this.name}}" loading="lazy"/>
+                      </div>
+                    {{/each}}
+                  </div>
+                {{else}}
+                  <p class="emote-strip-empty">No portraits cached for this folder</p>
+                {{/if}}
               </div>
-              <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
             </li>
           {{/each}}
         </ul>

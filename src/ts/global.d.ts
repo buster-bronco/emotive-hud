@@ -14,6 +14,7 @@ declare global {
     "emotive-hud.portraitRatio": number;
     "emotive-hud.snapThreshold": number;
     "emotive-hud.hudPosition": HUDPosition;
+    "emotive-hud.selectorPreviewRows": number;
   }
 
   // document flag shapes keyed by document name then scope
