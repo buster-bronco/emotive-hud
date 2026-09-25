@@ -277,7 +277,19 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     portraits.on('dblclick', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      this._onPortraitDoubleClick(event);
+      this._onOpenPortraitSheet(event);
+    });
+
+    // button 1 is middle click; mousedown default starts autoscroll
+    portraits.on('mousedown', (event) => {
+      if (event.button === 1) event.preventDefault();
+    });
+
+    portraits.on('auxclick', (event) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._onOpenPortraitSheet(event);
     });
   }
 
@@ -658,7 +670,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     canvas.animatePan({ x: token.center.x, y: token.center.y });
   }
 
-  private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
+  private async _onOpenPortraitSheet(event: JQuery.TriggeredEvent): Promise<void> {
     const portraitElement = event.currentTarget as HTMLElement;
     const actorId = portraitElement.dataset.actorId;
 
