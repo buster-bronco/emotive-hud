@@ -1,4 +1,4 @@
-import type { ActorConfig, EmotiveHudModule, HUDState } from "./types";
+import type { ActorConfig, ChatCommanderApi, EmotiveHudModule, HUDState } from "./types";
 
 type HUDPosition = { left: number; top: number } | null;
 
@@ -50,6 +50,8 @@ declare module "@league-of-foundry-developers/foundry-vtt-types/configuration" {
       "emotive-hud.actorLimitChanged": (value: number) => void;
       "emotive-hud.layoutChanged": (value: number) => void;
       "emotive-hud.snapSettingsChanged": (value: number) => void;
+      // fired by chat commander on ready with its api
+      chatCommandsReady: (commands: ChatCommanderApi) => void;
     }
   }
 }

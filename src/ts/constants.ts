@@ -29,7 +29,12 @@ export const CONSTANTS = {
   CHAT_COMMAND: {
     SAY: "/say",
     DO: "/do",
-  }
+  },
+
+  /**
+   * Module id of the chat commander integration
+   */
+  CHAT_COMMANDER_ID: "_chatcommands",
 } as const;
 
 export default CONSTANTS;

@@ -41,3 +41,14 @@ export type HUDState = {
     position: number; // Index/position on the Emotive HUD
   }[];
 };
+
+// subset of the chat commander module api (game.chatCommands)
+export interface ChatCommanderApi {
+  register(command: {
+    name: string;
+    module: string;
+    description?: string;
+    icon?: string;
+    callback?: (chat: unknown, parameters: string, messageData: object) => object | null | undefined;
+  }): void;
+}
