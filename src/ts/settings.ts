@@ -118,6 +118,15 @@ export const registerSettings = function() {
     default: true,
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'clickToFocus', {
+    name: "Enable Click to Focus",
+    hint: "Clicking a portrait pans the canvas to that actor's token and selects it.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
@@ -286,6 +295,10 @@ export const getActorPortraits = (uuid: string): string[] => {
 
 export const getSnapThreshold = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'snapThreshold') as number;
+};
+
+export const getClickToFocus = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'clickToFocus') as boolean;
 };
 
 export const getHUDPosition = (): { left: number; top: number } | null => {

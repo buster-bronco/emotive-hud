@@ -16,6 +16,7 @@ declare global {
     "emotive-hud.hudPosition": HUDPosition;
     "emotive-hud.selectorPreviewRows": number;
     "emotive-hud.confirmFolderSync": boolean;
+    "emotive-hud.clickToFocus": boolean;
   }
 
   // document flag shapes keyed by document name then scope

@@ -83,6 +83,7 @@
         overflow: hidden;
         aspect-ratio: var(--portrait-ratio);
         width: var(--floatingPortraitWidth);
+        cursor: pointer;
 
         &:hover {
           border-color: var(--color-border-highlight);

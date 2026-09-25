@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout } from "../settings";
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus } from "../settings";
 import { HUDState } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
@@ -261,6 +261,12 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }, 10);
 
     const portraits = html.find('.portrait');
+
+    portraits.on('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._onPortraitClick(event);
+    });
 
     portraits.on('contextmenu', (event) => {
       event.preventDefault();
@@ -555,7 +561,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
     const container = this.element.querySelector('.portrait-container') as HTMLElement;
     const handles = this.element.querySelectorAll<HTMLElement>('.resize-handle');
-    if (!container || handles.length === 0 || getIsMinimized()) return;
+    if (!container || handles.length === 0) return;
 
     const count = container.querySelectorAll('.portrait').length;
     if (count === 0) return;
@@ -631,6 +637,25 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     if (!actor?.isOwner) return;
 
     getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
+  }
+
+  private _onPortraitClick(event: JQuery.ClickEvent): void {
+    if (!getClickToFocus()) return;
+
+    const actorId = (event.currentTarget as HTMLElement).dataset.actorId;
+    if (!actorId) return;
+
+    const actor = getGame().actors?.get(actorId);
+    if (!actor || !canvas?.ready) return;
+
+    // getactivetokens() returns this actor's placeables on the viewed scene
+    const tokens = actor.getActiveTokens() as Token[];
+    const token = tokens.find(t => t.isOwner && t.isVisible) ?? tokens.find(t => t.isVisible);
+    if (!token) return;
+
+    // control() selects without targeting; fails silently for unowned tokens
+    token.control({ releaseOthers: true });
+    canvas.animatePan({ x: token.center.x, y: token.center.y });
   }
 
   private async _onPortraitDoubleClick(event: JQuery.DoubleClickEvent): Promise<void> {
