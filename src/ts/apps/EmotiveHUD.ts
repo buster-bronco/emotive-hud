@@ -681,10 +681,13 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     portrait.src = newSrc;
 
     // Add flash effect
-    const portraitContainer = portrait.closest('.portrait');
+    const portraitContainer = portrait.closest<HTMLElement>('.portrait');
     if (portraitContainer) {
+      // reading offsetWidth forces a reflow so the css animation restarts
+      portraitContainer.classList.remove('flash');
+      void portraitContainer.offsetWidth;
       portraitContainer.classList.add('flash');
-      setTimeout(() => portraitContainer.classList.remove('flash'), 500);
+      portraitContainer.addEventListener('animationend', () => portraitContainer.classList.remove('flash'), { once: true });
     }
   }
 }
