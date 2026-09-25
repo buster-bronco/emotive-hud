@@ -55,17 +55,128 @@
 
   .selected-actor {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     padding: 4px 8px;
     margin: 4px 0;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
-    gap: 8px;
-    
+
     &.dragging {
       opacity: 0.5;
       background: rgba(0, 0, 0, 0.2);
     }
+
+    &.file-drop-target {
+      outline: 2px dashed #4CAF50;
+      outline-offset: -2px;
+    }
+
+    &.expanded .emote-strip-wrapper {
+      display: block;
+    }
+  }
+
+  .actor-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .emote-strip-wrapper {
+    display: none;
+    margin-top: 6px;
+  }
+
+  .emote-strip {
+    $emote-size: 64px;
+    $emote-gap: 4px;
+
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--rows, 2), $emote-size);
+    grid-auto-columns: $emote-size;
+    gap: $emote-gap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+
+    .emote-item {
+      width: $emote-size;
+      height: $emote-size;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.15);
+
+      &:hover {
+        border-color: #999;
+      }
+
+      position: relative;
+
+      &.current {
+        border-color: #4CAF50;
+      }
+
+      &.excluded {
+        cursor: default;
+
+        img {
+          opacity: 0.3;
+          filter: grayscale(1);
+        }
+      }
+
+      .exclude-portrait {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        z-index: 1;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 11px;
+        text-decoration: none;
+        opacity: 0.5;
+        cursor: pointer;
+
+        &:hover {
+          background: #ff4444;
+          color: #fff;
+          text-shadow: none;
+        }
+      }
+
+      &:hover .exclude-portrait,
+      &.excluded .exclude-portrait {
+        opacity: 1;
+      }
+
+      &.excluded .exclude-portrait:hover {
+        background: #4CAF50;
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: none;
+      }
+    }
+  }
+
+  .emote-strip-empty {
+    margin: 4px 0;
+    font-style: italic;
+    color: #777;
+    text-align: left;
   }
   
   .drag-handle {
@@ -150,7 +261,12 @@
       font-family: monospace;
       background: rgba(0, 0, 0, 0.05);
       border-radius: 3px;
-      
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.12);
+      }
+
       &:empty::before {
         content: "No folder selected";
         color: #999;

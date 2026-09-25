@@ -1,5 +1,4 @@
 import { CONSTANTS } from './constants';
-import { emitHUDRefresh } from './sockets';
 import { ActorConfig, HUDState } from './types';
 import { getGame } from './utils';
 
@@ -54,12 +53,12 @@ export const registerSettings = function() {
     }
   });
 
+  // columns and portrait width are set by dragging the hud corners
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'gridColumns', {
     name: "Grid Columns",
-    hint: "Number of columns to display in the HUD. Set to 1 for vertical layout.",
     scope: "client",
-    config: true,
-    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 6, step: 1 }),
+    config: false,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 15 }),
     default: 3,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
@@ -68,10 +67,9 @@ export const registerSettings = function() {
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', {
     name: "Portrait Width",
-    hint: "The Portrait Width for the widget",
     scope: "client",
-    config: true,
-    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 100, max: 200, step: 25 }),
+    config: false,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: CONSTANTS.MIN_PORTRAIT_WIDTH, max: CONSTANTS.MAX_PORTRAIT_WIDTH }),
     default: 125,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
@@ -80,13 +78,12 @@ export const registerSettings = function() {
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'portraitRatio', {
     name: "Portrait Height Ratio",
-    hint: "Set the height ratio for portraits (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
-    scope: "world",
+    hint: "Height ratio for portraits on your HUD (1-2). A ratio of 2 means portraits will be twice as tall as they are wide.",
+    scope: "client",
     config: true,
     type: new (foundry as any).data.fields.NumberField({ nullable: false, min: 1, max: 2, step: 0.1 }),
     default: 1,
     onChange: value => {
-      emitHUDRefresh();
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
     }
   });
@@ -103,6 +100,52 @@ export const registerSettings = function() {
     }
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'selectorPreviewRows', {
+    name: "Actor Selector Emote Rows",
+    hint: "Number of rows in the emote strip shown when expanding an actor in the actor selector.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 4, step: 1 }),
+    default: 2,
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'confirmFolderSync', {
+    name: "Confirm Portrait Folder Sync",
+    hint: "Show a warning before syncing an actor's portrait folder, since syncing resets that actor's excluded portraits.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'clickToFocus', {
+    name: "Enable Click to Focus",
+    hint: "Clicking a portrait pans the canvas to that actor's token and selects it.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'tooltipsEnabled', {
+    name: "Show Portrait Tooltips",
+    hint: "Hovering a portrait shows a card with that actor's stats. The GM picks which stats appear.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
+  // "scope.fieldid" -> shown; missing keys fall back to the field default
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'tooltipFields', {
+    name: 'Tooltip Fields',
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {} as Record<string, boolean>,
+  });
+
+
   // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
@@ -117,57 +160,97 @@ export const getActorConfigs = (): Record<string, ActorConfig> => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorConfigs') as Record<string, ActorConfig>;
 };
 
-export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
-  const configs = getActorConfigs();
+const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
+// filepicker.browse lists a data folder; keep only image files
+export const scanPortraitFolder = async (folderPath: string): Promise<string[]> => {
+  const browser = await FilePicker.browse("data", folderPath);
+  console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
+  return browser.files.filter(file => {
+    const lower = file.toLowerCase();
+    return PORTRAIT_EXTENSIONS.some(ext => lower.endsWith(ext));
+  });
+};
+
+// settings.get can hand back the cached object; clone before mutating
+const cloneActorConfigs = (): Record<string, ActorConfig> => {
+  return foundry.utils.deepClone(getActorConfigs());
+};
+
+const saveActorConfigs = async (configs: Record<string, ActorConfig>): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
+  console.log(CONSTANTS.DEBUG_PREFIX, 'actorConfigs updated:', configs);
+};
+
+// rescans a folder into cachedportraits; exclusions survive only if the folder is unchanged
+const buildActorConfig = async (existing: ActorConfig | undefined, uuid: string, folderPath: string): Promise<ActorConfig> => {
+  const portraits = await scanPortraitFolder(folderPath);
+  const sameFolder = existing?.portraitFolder === folderPath;
+  const excluded = sameFolder
+    ? (existing?.excludedPortraits ?? []).filter(path => portraits.includes(path))
+    : [];
+  return { uuid, portraitFolder: folderPath, cachedPortraits: portraits, excludedPortraits: excluded };
+};
+
+export const updateActorConfig = async (uuid: string, folderPath: string | undefined): Promise<void> => {
   try {
     if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+    if (!folderPath) return;
 
-    if (!configs[uuid]) {
-      configs[uuid] = { uuid };
-    }
-
-    if (!folderPath) {
-      return;
-    }
-
-    const browser = await FilePicker.browse("data", folderPath);
-    console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
-
-    const portraits = browser.files.filter(file => {
-      const ext = file.toLowerCase();
-      return ext.endsWith('.jpg') ||
-        ext.endsWith('.jpeg') ||
-        ext.endsWith('.png') ||
-        ext.endsWith('.gif') ||
-        ext.endsWith('.webp');
-    });
-
-    console.log(CONSTANTS.DEBUG_PREFIX, 'Caching following portraits:', portraits);
-
-    const updatedConfig = {
-      uuid,
-      portraitFolder: folderPath,
-      cachedPortraits: portraits
-    };
-
-    configs[uuid] = updatedConfig;
-
-    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-    console.log(CONSTANTS.DEBUG_PREFIX, 'Actor config updated:', {
-      uuid,
-      config: updatedConfig,
-      allConfigs: configs
-    });
-
-    configs[uuid] = updatedConfig;
-
-    await getGame().settings.set(CONSTANTS.MODULE_ID, 'actorConfigs', configs);
-    console.log(CONSTANTS.DEBUG_PREFIX, ' actorConfigs updated: ', configs);
+    const configs = cloneActorConfigs();
+    configs[uuid] = await buildActorConfig(configs[uuid], uuid, folderPath);
+    await saveActorConfigs(configs);
   } catch (error) {
     console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating actor config:', error);
     throw error;
   }
+};
+
+// batch save for apply; only folders that changed get rescanned
+export const saveActorFolders = async (entries: { uuid: string; portraitFolder?: string }[]): Promise<void> => {
+  if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+
+  const configs = cloneActorConfigs();
+  let changed = false;
+
+  await Promise.all(entries.map(async ({ uuid, portraitFolder }) => {
+    if (!portraitFolder) return;
+    const existing = configs[uuid];
+    if (existing?.portraitFolder === portraitFolder && existing.cachedPortraits) return;
+    configs[uuid] = await buildActorConfig(existing, uuid, portraitFolder);
+    changed = true;
+  }));
+
+  if (changed) await saveActorConfigs(configs);
+};
+
+// sync rescans each folder and clears its excluded portraits
+export const syncActorConfigs = async (entries: { uuid: string; portraitFolder?: string }[]): Promise<number> => {
+  if (!getGame().user?.isGM) throw "Only GM Can Browse Files";
+
+  const configs = cloneActorConfigs();
+  const targets = entries.filter(entry => entry.portraitFolder);
+
+  await Promise.all(targets.map(async ({ uuid, portraitFolder }) => {
+    const portraits = await scanPortraitFolder(portraitFolder!);
+    configs[uuid] = { uuid, portraitFolder, cachedPortraits: portraits, excludedPortraits: [] };
+  }));
+
+  if (targets.length) await saveActorConfigs(configs);
+  return targets.length;
+};
+
+// excluded portraits are hidden from the hud picker; used for duplicate files
+export const setPortraitExcluded = async (uuid: string, path: string, excluded: boolean): Promise<void> => {
+  const configs = cloneActorConfigs();
+  const config = configs[uuid] ?? { uuid };
+  const current = new Set(config.excludedPortraits ?? []);
+
+  if (excluded) current.add(path);
+  else current.delete(path);
+
+  configs[uuid] = { ...config, excludedPortraits: Array.from(current) };
+  await saveActorConfigs(configs);
 };
 
 export const getHUDState = (): HUDState => {
@@ -197,6 +280,18 @@ export const getGridColumns = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
 };
 
+export const getSelectorPreviewRows = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'selectorPreviewRows') as number;
+};
+
+export const getConfirmFolderSync = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'confirmFolderSync') as boolean;
+};
+
+export const setConfirmFolderSync = async (value: boolean): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'confirmFolderSync', value);
+};
+
 export const getPortraitRatio = (): number => {
   return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
 }
@@ -205,13 +300,24 @@ export const getFloatingPortraitWidth = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
 }
 
+export const setHUDLayout = async (columns: number, width: number): Promise<void> => {
+  const settings = getGame().settings;
+  await settings.set(CONSTANTS.MODULE_ID, 'gridColumns', columns);
+  await settings.set(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', width);
+}
+
 export const getActorPortraits = (uuid: string): string[] => {
-  const configs = getActorConfigs();
-  return configs[uuid]?.cachedPortraits ?? [];
+  const config = getActorConfigs()[uuid];
+  const excluded = new Set(config?.excludedPortraits ?? []);
+  return (config?.cachedPortraits ?? []).filter(path => !excluded.has(path));
 };
 
 export const getSnapThreshold = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'snapThreshold') as number;
+};
+
+export const getClickToFocus = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'clickToFocus') as boolean;
 };
 
 export const getHUDPosition = (): { left: number; top: number } | null => {
@@ -220,4 +326,15 @@ export const getHUDPosition = (): { left: number; top: number } | null => {
 
 export const setHUDPosition = async (position: { left: number; top: number } | null): Promise<void> => {
   await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudPosition', position);
+};
+export const getTooltipsEnabled = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipsEnabled') as boolean;
+};
+
+export const getTooltipFieldToggles = (): Record<string, boolean> => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipFields') as Record<string, boolean>;
+};
+
+export const setTooltipFieldToggles = async (toggles: Record<string, boolean>): Promise<void> => {
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'tooltipFields', toggles);
 };

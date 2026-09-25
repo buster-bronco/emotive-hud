@@ -8,15 +8,20 @@ import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 import { initializeSocketListeners } from "./sockets";
 import { getGame } from "./utils";
 import { initializeChatCommands } from "./chatCommand";
+import { announceTooltipApi, registerBuiltinTooltipFields, tooltipApi } from "./tooltips";
+import TooltipConfig from "./apps/TooltipConfig";
 
 let module: EmotiveHudModule;
 
 Hooks.once("init", () => {
   registerSettings();
+  TooltipConfig.registerMenu();
+  registerBuiltinTooltipFields();
 
   console.log(`${CONSTANTS.DEBUG_PREFIX} Initializing ${CONSTANTS.MODULE_ID}`);
 
   module = getGame().modules.get(CONSTANTS.MODULE_ID) as EmotiveHudModule;
+  module.api = tooltipApi;
   
   // Initialize all applications
   module.emotiveActorSelector = new EmotiveActorSelector();
@@ -30,4 +35,8 @@ Hooks.once("init", () => {
 // EmotiveHUD hook
 Hooks.once("ready", () => {
   module.emotiveHUD.render(true);
+});
+
+Hooks.once("setup", () => {
+  announceTooltipApi();
 });
