@@ -244,23 +244,8 @@ export default class EmotiveActorSelector extends Application {
     }) as Application.Options;
   }
 
-  protected override _getHeaderButtons(): Application.HeaderButton[] {
-    const buttons = super._getHeaderButtons();
-    
-    buttons.unshift({
-      label: "Reset Changes",
-      class: "reset-changes",
-      icon: "fas fa-rotate-left",
-      onclick: () => {
-        const selector = getModule().emotiveActorSelector;
-        selector._onResetChanges();
-      }
-    });
-  
-    return buttons;
-  }
-  
-  private async _onResetChanges(): Promise<void> {
+  private async _onResetChanges(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
     await this._loadFromSettings();
     this.render(false);
   }
@@ -432,6 +417,9 @@ export default class EmotiveActorSelector extends Application {
 
     html.find(".clear-actors")
       .on("click", this._onClearActors.bind(this));
+
+    html.find(".reset-changes")
+      .on("click", this._onResetChanges.bind(this));
 
     html.find(".select-portrait-folder")
       .on("click", this._onSelectPortraitFolder.bind(this));

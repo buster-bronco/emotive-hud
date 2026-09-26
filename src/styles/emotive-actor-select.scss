@@ -77,6 +77,21 @@
     }
   }
 
+  .reset-changes {
+    flex: 0 0 auto;
+    width: auto;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 3px;
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #d0d0d0;
+    }
+  }
+
   .selected-actors-list {
     list-style: none;
     padding: 0;
