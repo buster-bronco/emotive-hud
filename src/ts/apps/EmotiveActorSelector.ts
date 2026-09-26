@@ -79,7 +79,7 @@ export default class EmotiveActorSelector extends Application {
     }));
   }
 
-  protected _onDragDrop(event: DragEvent): void {
+  protected async _onDragDrop(event: DragEvent): Promise<void> {
     if (!event.dataTransfer) return;
 
     if (event.dataTransfer.files.length) {
@@ -91,39 +91,68 @@ export default class EmotiveActorSelector extends Application {
       const raw = event.dataTransfer.getData("text/plain");
       if (!raw) return;
       const data = JSON.parse(raw);
-      const actorLimit = getActorLimit();
-      
-      if (data.type === "Actor" && data.uuid) {
-        // Check if we've hit the actor limit
-        if (this.selectedActors.length >= actorLimit) {
-          ui.notifications?.warn(`Cannot add more actors. Maximum limit of ${actorLimit} reached.`);
+      if (!data.uuid) return;
+
+      if (data.type === "Actor") {
+        const actor = await fromUuid(data.uuid) as Actor | null;
+        if (!actor) return;
+
+        // pf2e party actors hold their characters in members
+        const members = (actor as Actor & { members?: Actor[] }).members;
+        if ((actor.type as string) === "party" && Array.isArray(members)) {
+          const added = this._addActors(members.flatMap(m => m.uuid ?? []));
+          if (!members.length) ui.notifications?.info(`${actor.name} has no members`);
+          else if (added) ui.notifications?.info(`Added ${added} actor(s) from ${actor.name}`);
           return;
         }
-        
-        // Check if actor is already in the list
-        if (!this.selectedActors.some(actor => actor.uuid === data.uuid)) {
-          console.log(CONSTANTS.DEBUG_PREFIX, "Processing Actor drop with ID:", data.uuid);
-  
-          // Retrieve the existing config for the actor
-          const configs = getActorConfigs();
-          const actorConfig = configs[data.uuid];
-  
-          // Use the portraitFolder from config if it exists, or an empty string
-          const portraitFolder = actorConfig?.portraitFolder || "";
-  
-          // Add actor to selectedActors with its existing portrait folder
-          this.selectedActors.push({
-            uuid: data.uuid,
-            portraitFolder: portraitFolder
-          });
-  
-          // Update settings and re-render
-          this.render(false);
+
+        this._addActors([data.uuid]);
+      } else if (data.type === "Folder") {
+        const folder = await fromUuid(data.uuid) as Folder | null;
+        if (folder?.type !== "Actor") return;
+
+        // getsubfolders(true) walks nested folders
+        const folders = [folder, ...folder.getSubfolders(true)];
+        const uuids = folders.flatMap(f => (f.contents as Actor[]).flatMap(doc => doc.uuid ?? []));
+        if (!uuids.length) {
+          ui.notifications?.info(`${folder.name} has no actors`);
+          return;
         }
+
+        const added = this._addActors(uuids);
+        if (added) ui.notifications?.info(`Added ${added} actor(s) from ${folder.name}`);
       }
     } catch (err) {
       console.error(CONSTANTS.DEBUG_PREFIX, "Error processing drop:", err);
     }
+  }
+
+  // appends uuids not already listed, up to the actor limit
+  private _addActors(uuids: string[]): number {
+    const actorLimit = getActorLimit();
+    const configs = getActorConfigs();
+    const fresh = [...new Set(uuids)].filter(uuid => !this.selectedActors.some(a => a.uuid === uuid));
+    const room = Math.max(0, actorLimit - this.selectedActors.length);
+    const toAdd = fresh.slice(0, room);
+
+    if (fresh.length > toAdd.length) {
+      const skipped = fresh.length - toAdd.length;
+      ui.notifications?.warn(toAdd.length
+        ? `Added ${toAdd.length} actor(s); ${skipped} skipped (limit of ${actorLimit} reached)`
+        : `Cannot add more actors. Maximum limit of ${actorLimit} reached.`);
+    }
+
+    if (!toAdd.length) return 0;
+
+    for (const uuid of toAdd) {
+      this.selectedActors.push({
+        uuid,
+        portraitFolder: configs[uuid]?.portraitFolder || ""
+      });
+    }
+
+    this.render(false);
+    return toAdd.length;
   }
 
   // os file drops carry files but no text payload
@@ -185,6 +214,23 @@ export default class EmotiveActorSelector extends Application {
     this.render(false);
   }
 
+  // dialogv2.confirm resolves true on yes, false on no, null on close
+  private async _onClearActors(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    if (!this.selectedActors.length) return;
+
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Clear All Actors" },
+      content: "<p>Remove all actors from the list? Nothing is saved until you click Apply.</p>",
+      rejectClose: false
+    });
+    if (!confirmed) return;
+
+    this.selectedActors = [];
+    this.expanded.clear();
+    this.render(false);
+  }
+
   override get title(): string {
     return getGame().i18n!.localize("EMOTIVEHUD.emotive-actor-selector");
   }
@@ -198,23 +244,8 @@ export default class EmotiveActorSelector extends Application {
     }) as Application.Options;
   }
 
-  protected override _getHeaderButtons(): Application.HeaderButton[] {
-    const buttons = super._getHeaderButtons();
-    
-    buttons.unshift({
-      label: "Reset Changes",
-      class: "reset-changes",
-      icon: "fas fa-rotate-left",
-      onclick: () => {
-        const selector = getModule().emotiveActorSelector;
-        selector._onResetChanges();
-      }
-    });
-  
-    return buttons;
-  }
-  
-  private async _onResetChanges(): Promise<void> {
+  private async _onResetChanges(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
     await this._loadFromSettings();
     this.render(false);
   }
@@ -383,6 +414,12 @@ export default class EmotiveActorSelector extends Application {
         
     html.find(".remove-actor")
       .on("click", this._onRemoveActor.bind(this));
+
+    html.find(".clear-actors")
+      .on("click", this._onClearActors.bind(this));
+
+    html.find(".reset-changes")
+      .on("click", this._onResetChanges.bind(this));
 
     html.find(".select-portrait-folder")
       .on("click", this._onSelectPortraitFolder.bind(this));

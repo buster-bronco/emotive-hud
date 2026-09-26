@@ -1,3 +1,6 @@
+// 24px buttons + 4px padding each side + 1px borders
+$bar-height: 34px;
+
 .emotive-hud-widget {
   // Remove all default ApplicationV2 window styling
   .window-header,
@@ -14,36 +17,86 @@
   .emotive-hud {
     position: relative;
     display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
     pointer-events: auto;
+    // color-mix blends the tint toward transparent by alpha
+    --hud-bg: color-mix(in srgb, var(--hud-bg-color, #000) calc(var(--hud-bg-alpha, 0.35) * 100%), transparent);
 
-    // controls column sits against the docked edge
-    &[data-dock="right"] {
-      flex-direction: row-reverse;
+    // idle hud hides its control bar until hovered
+    &.bar-autofade .hud-controls {
+      transition: opacity 400ms ease;
     }
 
-    &[data-anchor="bottom"] .hud-controls {
-      align-self: flex-end;
+    &.bar-autofade.bar-idle .hud-controls {
+      opacity: 0;
     }
 
-    &.minimized .portrait-container {
-      display: none;
+    // hidden grid stays in layout so the bar keeps the expanded size
+    &.minimized {
+      gap: 0;
+
+      .portrait-container {
+        visibility: hidden;
+        border-width: 0;
+        overflow: hidden;
+      }
+
+      // zero-height grid keeps the expanded width
+      &:not([data-dock="left"]):not([data-dock="right"]) .portrait-container {
+        height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      // left/right docks: vertical bar at the expanded height
+      &[data-dock="left"],
+      &[data-dock="right"] {
+        flex-direction: row;
+
+        // zero-width grid keeps its row heights; top padding stands in for the bar and border
+        .portrait-container {
+          width: 0;
+          padding-left: 0;
+          padding-right: 0;
+          padding-top: calc(16px + 2px + #{$bar-height} + 4px);
+        }
+
+        // column-reverse puts the toggle on top where it was
+        .hud-controls {
+          flex-direction: column-reverse;
+
+          .toggle-visibility {
+            margin-left: 0;
+            margin-bottom: auto;
+          }
+        }
+      }
     }
 
     .hud-controls {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      align-items: center;
       gap: 4px;
-      align-self: flex-start;
+      padding: 4px;
+      background: var(--hud-bg);
+      border: 1px solid var(--color-border-dark);
+      border-radius: 3px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+      }
 
       .control-button {
         width: 24px;
         height: 24px;
         padding: 0;
         color: var(--color-text-light-highlight);
-        background: rgba(0, 0, 0, 0.5);
+        background: var(--hud-bg);
         border: 1px solid var(--color-border-dark);
         border-radius: 3px;
         cursor: pointer;
@@ -56,12 +109,9 @@
           border-color: var(--color-border-highlight);
         }
 
-        &.drag-handle {
-          cursor: grab;
-          
-          &:active {
-            cursor: grabbing;
-          }
+        // auto margin pushes the toggle to the far end
+        &.toggle-visibility {
+          margin-left: auto;
         }
 
         i {
@@ -84,7 +134,7 @@
       gap: 8px;
       padding: 16px;
       border-radius: 3px;
-      background: rgba(0, 0, 0, 0.5);
+      background: var(--hud-bg);
       border: 1px solid var(--color-border-dark);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       display: grid;

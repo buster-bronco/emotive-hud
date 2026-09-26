@@ -88,6 +88,30 @@ export const registerSettings = function() {
     }
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudBackgroundColor', {
+    name: "HUD Background Color",
+    hint: "Tint color behind your HUD's portraits and buttons.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.ColorField({ nullable: false, initial: "#000000" }),
+    default: "#000000",
+    onChange: () => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
+    }
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudBackgroundOpacity', {
+    name: "HUD Background Opacity",
+    hint: "How opaque the HUD background tint is (0 is fully transparent, 1 is solid).",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, min: 0, max: 1, step: 0.05 }),
+    default: 0.35,
+    onChange: () => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
+    }
+  });
+
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'snapThreshold', {
     name: "Edge Snap Distance",
     hint: "How close (in pixels) the HUD needs to be to an edge before it automatically snaps. Set to 0 to disable snapping.",
@@ -97,6 +121,18 @@ export const registerSettings = function() {
     default: 30,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.snapSettingsChanged`, value);
+    }
+  });
+
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'barFadeDelay', {
+    name: "Control Bar Fade Delay",
+    hint: "Seconds without hovering before the HUD's control bar fades out. Set to 0 to disable.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 0, max: 30, step: 1 }),
+    default: 3,
+    onChange: () => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
     }
   });
 
@@ -300,7 +336,15 @@ export const getFloatingPortraitWidth = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
 }
 
-export const setHUDLayout = async (columns: number, width: number): Promise<void> => {
+export const getHUDBackgroundColor = (): string => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor') as string;
+}
+
+export const getHUDBackgroundOpacity = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundOpacity') as number;
+}
+
+export const setHUDLayout =async (columns: number, width: number): Promise<void> => {
   const settings = getGame().settings;
   await settings.set(CONSTANTS.MODULE_ID, 'gridColumns', columns);
   await settings.set(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', width);
@@ -314,6 +358,10 @@ export const getActorPortraits = (uuid: string): string[] => {
 
 export const getSnapThreshold = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'snapThreshold') as number;
+};
+
+export const getBarFadeDelay = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'barFadeDelay') as number;
 };
 
 export const getClickToFocus = (): boolean => {

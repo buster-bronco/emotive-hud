@@ -75,6 +75,39 @@ export const registerPF2eFields = (): void => {
       },
     },
     {
+      id: "resources",
+      label: "Class Resources",
+      render: (actor: PF2eActor) => {
+        // specialresource rule elements land in synthetics.resources keyed by slug, e.g. versatile vials
+        const sections: TooltipSection[] = [];
+        for (const [slug, rule] of Object.entries<any>(actor.synthetics?.resources ?? {})) {
+          const resource = actor.getResource?.(slug) ?? rule;
+          if (!resource?.max) continue;
+          sections.push({ kind: "stat", label: resource.label ?? rule.label ?? slug, value: `${resource.value ?? 0}/${resource.max}` });
+        }
+        return sections.length ? sections : null;
+      },
+    },
+    {
+      id: "heroPoints",
+      label: "Hero Points",
+      render: (actor: PF2eActor) => {
+        const hero = actor.system?.resources?.heroPoints;
+        if (!hero?.max) return null;
+        return { kind: "stat", label: "Hero", value: `${hero.value ?? 0}/${hero.max}` };
+      },
+    },
+    {
+      id: "infusedReagents",
+      label: "Infused Reagents",
+      render: (actor: PF2eActor) => {
+        // daily alchemist crafting pool on the crafting tab
+        const reagents = actor.system?.resources?.crafting?.infusedReagents;
+        if (!reagents?.max) return null;
+        return { kind: "stat", label: "Reagents", value: `${reagents.value ?? 0}/${reagents.max}` };
+      },
+    },
+    {
       id: "conditions",
       label: "Conditions",
       render: (actor: PF2eActor) => {

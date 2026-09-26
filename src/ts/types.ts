@@ -36,6 +36,10 @@ export interface EmotiveHUDData extends foundry.applications.api.ApplicationV2.R
   isMinimized: boolean;
   portraits: PortraitData[];
   floatingPortraitWidth: number;
+  backgroundColor: string;
+  backgroundOpacity: number;
+  dockSide: string;
+  toggleIcon: string;
 }
 
 export interface PortraitData {
@@ -80,4 +84,3 @@ export interface ChatCommanderApi {
 export type DockSide = 'left' | 'right' | 'top' | 'bottom' | null;
 
 // which end of the controls column the toggle stays pinned to
-export type VerticalAnchor = 'top' | 'bottom';
