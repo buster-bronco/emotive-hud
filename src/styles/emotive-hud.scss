@@ -14,36 +14,56 @@
   .emotive-hud {
     position: relative;
     display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
     pointer-events: auto;
+    // color-mix blends the tint toward transparent by alpha
+    --hud-bg: color-mix(in srgb, var(--hud-bg-color, #000) calc(var(--hud-bg-alpha, 0.35) * 100%), transparent);
 
-    // controls column sits against the docked edge
-    &[data-dock="right"] {
-      flex-direction: row-reverse;
+    // bar flips under the grid for drop-up huds
+    &[data-anchor="bottom"] {
+      flex-direction: column-reverse;
     }
 
-    &[data-anchor="bottom"] .hud-controls {
-      align-self: flex-end;
-    }
+    &.minimized {
+      .portrait-container {
+        display: none;
+      }
 
-    &.minimized .portrait-container {
-      display: none;
+      .hud-controls {
+        padding: 2px;
+        gap: 2px;
+
+        .control-button {
+          width: 20px;
+          height: 20px;
+
+          i {
+            font-size: 10px;
+          }
+        }
+      }
     }
 
     .hud-controls {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      align-items: center;
       gap: 4px;
-      align-self: flex-start;
+      padding: 4px;
+      background: var(--hud-bg);
+      border: 1px solid var(--color-border-dark);
+      border-radius: 3px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: padding 0.15s ease, gap 0.15s ease;
 
       .control-button {
         width: 24px;
         height: 24px;
         padding: 0;
         color: var(--color-text-light-highlight);
-        background: rgba(0, 0, 0, 0.5);
+        background: var(--hud-bg);
         border: 1px solid var(--color-border-dark);
         border-radius: 3px;
         cursor: pointer;
@@ -56,7 +76,9 @@
           border-color: var(--color-border-highlight);
         }
 
+        // auto margin pushes the other buttons to the far end
         &.drag-handle {
+          margin-right: auto;
           cursor: grab;
           
           &:active {
@@ -84,7 +106,7 @@
       gap: 8px;
       padding: 16px;
       border-radius: 3px;
-      background: rgba(0, 0, 0, 0.5);
+      background: var(--hud-bg);
       border: 1px solid var(--color-border-dark);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       display: grid;

@@ -12,6 +12,8 @@ declare global {
     "emotive-hud.gridColumns": number;
     "emotive-hud.floatingPortraitWidth": number;
     "emotive-hud.portraitRatio": number;
+    "emotive-hud.hudBackgroundColor": string;
+    "emotive-hud.hudBackgroundOpacity": number;
     "emotive-hud.snapThreshold": number;
     "emotive-hud.hudPosition": HUDPosition;
     "emotive-hud.selectorPreviewRows": number;
@@ -54,6 +56,7 @@ declare module "@league-of-foundry-developers/foundry-vtt-types/configuration" {
       "emotive-hud.minimizedStateChanged": (value: boolean) => void;
       "emotive-hud.actorLimitChanged": (value: number) => void;
       "emotive-hud.layoutChanged": (value: number) => void;
+      "emotive-hud.appearanceChanged": () => void;
       "emotive-hud.snapSettingsChanged": (value: number) => void;
       // other modules add system tooltip fields here
       "emotive-hud.registerTooltipFields": (api: EmotiveHudApi) => void;
