@@ -185,6 +185,23 @@ export default class EmotiveActorSelector extends Application {
     this.render(false);
   }
 
+  // dialogv2.confirm resolves true on yes, false on no, null on close
+  private async _onClearActors(event: JQuery.ClickEvent): Promise<void> {
+    event.preventDefault();
+    if (!this.selectedActors.length) return;
+
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Clear All Actors" },
+      content: "<p>Remove all actors from the list? Nothing is saved until you click Apply.</p>",
+      rejectClose: false
+    });
+    if (!confirmed) return;
+
+    this.selectedActors = [];
+    this.expanded.clear();
+    this.render(false);
+  }
+
   override get title(): string {
     return getGame().i18n!.localize("EMOTIVEHUD.emotive-actor-selector");
   }
@@ -383,6 +400,9 @@ export default class EmotiveActorSelector extends Application {
         
     html.find(".remove-actor")
       .on("click", this._onRemoveActor.bind(this));
+
+    html.find(".clear-actors")
+      .on("click", this._onClearActors.bind(this));
 
     html.find(".select-portrait-folder")
       .on("click", this._onSelectPortraitFolder.bind(this));

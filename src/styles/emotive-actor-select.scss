@@ -34,16 +34,46 @@
     }
   }
 
+  .selector-footer {
+    display: flex;
+    gap: 8px;
+    margin: 5px 0;
+  }
+
   .apply-button {
+    flex: 1;
     border: none;
     padding: 5px 10px;
     border-radius: 3px;
     cursor: pointer;
-    margin: 5px 0;
+    margin: 0;
     font-weight: 500;
 
     &:hover {
       background-color: #d0d0d0;
+    }
+  }
+
+  .clear-actors {
+    flex: 0 0 auto;
+    width: auto;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 3px;
+    margin: 0;
+    background-color: #ff4444;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background-color: #ff0000;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
     }
   }
 
