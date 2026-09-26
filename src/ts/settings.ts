@@ -124,6 +124,18 @@ export const registerSettings = function() {
     }
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'barFadeDelay', {
+    name: "Control Bar Fade Delay",
+    hint: "Seconds without hovering before the HUD's control bar fades out. Set to 0 to disable.",
+    scope: "client",
+    config: true,
+    type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 0, max: 30, step: 1 }),
+    default: 3,
+    onChange: () => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
+    }
+  });
+
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'selectorPreviewRows', {
     name: "Actor Selector Emote Rows",
     hint: "Number of rows in the emote strip shown when expanding an actor in the actor selector.",
@@ -346,6 +358,10 @@ export const getActorPortraits = (uuid: string): string[] => {
 
 export const getSnapThreshold = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'snapThreshold') as number;
+};
+
+export const getBarFadeDelay = (): number => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'barFadeDelay') as number;
 };
 
 export const getClickToFocus = (): boolean => {

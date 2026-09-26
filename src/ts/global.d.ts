@@ -15,6 +15,7 @@ declare global {
     "emotive-hud.hudBackgroundColor": string;
     "emotive-hud.hudBackgroundOpacity": number;
     "emotive-hud.snapThreshold": number;
+    "emotive-hud.barFadeDelay": number;
     "emotive-hud.hudPosition": HUDPosition;
     "emotive-hud.selectorPreviewRows": number;
     "emotive-hud.confirmFolderSync": boolean;

@@ -24,6 +24,15 @@ $bar-height: 34px;
     // color-mix blends the tint toward transparent by alpha
     --hud-bg: color-mix(in srgb, var(--hud-bg-color, #000) calc(var(--hud-bg-alpha, 0.35) * 100%), transparent);
 
+    // idle hud hides its control bar until hovered
+    &.bar-autofade .hud-controls {
+      transition: opacity 400ms ease;
+    }
+
+    &.bar-autofade.bar-idle .hud-controls {
+      opacity: 0;
+    }
+
     // hidden grid stays in layout so the bar keeps the expanded size
     &.minimized {
       gap: 0;

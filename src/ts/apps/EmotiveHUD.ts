@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity } from "../settings";
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay } from "../settings";
 import { HUDState, DockSide } from '../types';
 import CONSTANTS from "../constants";
 import { getGame, getModule, isCurrentUserGM } from "../utils";
@@ -13,6 +13,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private hasBeenPositioned: boolean = false;
   private isAnimating: boolean = false;
   private dock: { side: DockSide } = { side: null };
+  private barFadeTimer: number | undefined;
+  private barFadeBound: boolean = false;
 
   // Constants for positioning and sidebar detection
   private static readonly POSITION_MARGIN = 16;
@@ -336,6 +338,60 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     hud.dataset.dock = this.dock.side ?? 'none';
     toggleIcon.className = this.getToggleIcon();
     toggleButton.setAttribute('title', `${isMinimized ? 'Show' : 'Hide'} Emotive HUD`);
+    this.updateBarFade();
+  }
+
+  // only an expanded hud with portraits fades its bar
+  private canFadeBar(): boolean {
+    return !!this.element?.querySelector('.portrait')
+      && !getIsMinimized()
+      && getBarFadeDelay() > 0;
+  }
+
+  private updateBarFade(): void {
+    const hud = this.element?.querySelector('.emotive-hud') as HTMLElement | null;
+    if (!hud) return;
+
+    const eligible = this.canFadeBar();
+    hud.classList.toggle('bar-autofade', eligible);
+
+    if (!eligible) {
+      window.clearTimeout(this.barFadeTimer);
+      hud.classList.remove('bar-idle');
+    } else if (!this.element!.matches(':hover')) {
+      this.scheduleBarFade();
+    }
+  }
+
+  // idle timer; drags and resizes can carry the pointer off the hud
+  private scheduleBarFade(): void {
+    window.clearTimeout(this.barFadeTimer);
+    this.barFadeTimer = window.setTimeout(() => {
+      const element = this.element;
+      const hud = element?.querySelector('.emotive-hud') as HTMLElement | null;
+      if (!element || !hud || !this.canFadeBar()) return;
+
+      const busy = element.classList.contains('dragging') || element.classList.contains('resizing');
+      if (busy || element.matches(':hover')) {
+        this.scheduleBarFade();
+        return;
+      }
+      hud.classList.add('bar-idle');
+    }, getBarFadeDelay() * 1000);
+  }
+
+  // app element outlives re-renders; bind once
+  private setupBarFade(): void {
+    if (!this.element || this.barFadeBound) return;
+    this.barFadeBound = true;
+
+    this.element.addEventListener('pointerenter', () => {
+      window.clearTimeout(this.barFadeTimer);
+      this.element?.querySelector('.emotive-hud')?.classList.remove('bar-idle');
+    });
+    this.element.addEventListener('pointerleave', () => {
+      if (this.element?.querySelector('.emotive-hud.bar-autofade')) this.scheduleBarFade();
+    });
   }
 
   // minimized bars change shape when docked; keep the right edge flush
@@ -366,6 +422,13 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
     this.applyPosition(left, top);
     setHUDPosition({ left, top });
+  }
+
+  // closing drops the app element; a reopen builds a fresh one
+  override _onClose(options: any): void {
+    super._onClose(options);
+    window.clearTimeout(this.barFadeTimer);
+    this.barFadeBound = false;
   }
 
   override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
@@ -420,6 +483,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     this.setupDragging();
     this.setupResizing();
     this.setupSidebarObserver();
+    this.setupBarFade();
     this.applyDockState();
 
     // Set up event listeners using jQuery for compatibility
