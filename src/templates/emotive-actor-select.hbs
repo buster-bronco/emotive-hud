@@ -2,56 +2,73 @@
   <h2>{{title}}</h2>
   <div class="content">
     <div class="drag-area" id="drag-area">
-      {{#if selectedActors.length}}
-        <ul class="selected-actors-list">
-          {{#each selectedActors}}
-            <li class="selected-actor{{#if this.expanded}} expanded{{/if}}" data-uuid="{{this.uuid}}" data-group-id="{{this.groupId}}">
-              <div class="actor-row" title="Click to show emotes">
-                <div class="drag-handle">
-                  <i class="fas fa-grip-lines"></i>
-                </div>
-                <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}" title="Open {{this.name}}'s sheet"/>
-                <span class="actor-name">{{this.name}}</span>
-                <div class="portrait-controls">
-                  <button class="portrait-control-btn import-portraits" data-uuid="{{this.uuid}}" title="Import Portrait Files">
-                    <i class="fas fa-file-upload"></i>
-                  </button>
-                  <button class="portrait-control-btn select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">
-                    <i class="fas fa-folder"></i>
-                  </button>
-                  <button class="portrait-control-btn sync-portrait-folder" data-uuid="{{this.uuid}}" title="Sync Portrait Folder">
-                    <i class="fas fa-rotate"></i>
-                  </button>
-                  <span class="portrait-path select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">{{this.portraitFolder}}</span>
-                </div>
-                <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
-              </div>
-              <div class="emote-strip-wrapper">
-                {{#if this.portraits.length}}
-                  <div class="emote-strip" style="--rows: {{../previewRows}}">
-                    {{#each this.portraits}}
-                      <div class="emote-item{{#if this.current}} current{{/if}}{{#if this.excluded}} excluded{{/if}}" data-path="{{this.path}}" title="{{this.name}}">
-                        <img src="{{this.path}}" alt="{{this.name}}" loading="lazy"/>
-                        <a class="exclude-portrait" title="{{#if this.excluded}}Restore portrait{{else}}Exclude portrait{{/if}}">
-                          <i class="fas {{#if this.excluded}}fa-rotate-left{{else}}fa-xmark{{/if}}"></i>
-                        </a>
-                      </div>
-                    {{/each}}
+      {{#if groups.length}}
+        {{#each groups}}
+          <section class="actor-group" data-group-id="{{this.id}}">
+            <header class="group-header">
+              <i class="fas fa-folder-open"></i>
+              <span class="group-name">Group {{this.number}}</span>
+              <span class="group-count">{{this.actors.length}}</span>
+              {{#if @root.canRemoveGroups}}
+                <button class="remove-group" data-group-id="{{this.id}}" title="Remove group; its actors join the group above">
+                  <i class="fas fa-folder-minus"></i>
+                </button>
+              {{/if}}
+            </header>
+            <ul class="selected-actors-list group-actors{{#unless this.actors.length}} empty{{/unless}}" data-group-id="{{this.id}}">
+              {{#each this.actors}}
+                <li class="selected-actor{{#if this.expanded}} expanded{{/if}}" data-uuid="{{this.uuid}}">
+                  <div class="actor-row" title="Click to show emotes">
+                    <div class="drag-handle">
+                      <i class="fas fa-grip-lines"></i>
+                    </div>
+                    <img class="actor-portrait clickable" data-uuid="{{this.uuid}}" src="{{this.img}}" alt="{{this.name}}" title="Open {{this.name}}'s sheet"/>
+                    <span class="actor-name">{{this.name}}</span>
+                    <div class="portrait-controls">
+                      <button class="portrait-control-btn import-portraits" data-uuid="{{this.uuid}}" title="Import Portrait Files">
+                        <i class="fas fa-file-upload"></i>
+                      </button>
+                      <button class="portrait-control-btn select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">
+                        <i class="fas fa-folder"></i>
+                      </button>
+                      <button class="portrait-control-btn sync-portrait-folder" data-uuid="{{this.uuid}}" title="Sync Portrait Folder">
+                        <i class="fas fa-rotate"></i>
+                      </button>
+                      <span class="portrait-path select-portrait-folder" data-uuid="{{this.uuid}}" title="Select Custom Portrait Folder">{{this.portraitFolder}}</span>
+                    </div>
+                    <button class="remove-actor" data-uuid="{{this.uuid}}">×</button>
                   </div>
-                {{else}}
-                  <p class="emote-strip-empty">No portraits cached for this folder</p>
-                {{/if}}
-              </div>
-            </li>
-          {{/each}}
-        </ul>
+                  <div class="emote-strip-wrapper">
+                    {{#if this.portraits.length}}
+                      <div class="emote-strip" style="--rows: {{@root.previewRows}}">
+                        {{#each this.portraits}}
+                          <div class="emote-item{{#if this.current}} current{{/if}}{{#if this.excluded}} excluded{{/if}}" data-path="{{this.path}}" title="{{this.name}}">
+                            <img src="{{this.path}}" alt="{{this.name}}" loading="lazy"/>
+                            <a class="exclude-portrait" title="{{#if this.excluded}}Restore portrait{{else}}Exclude portrait{{/if}}">
+                              <i class="fas {{#if this.excluded}}fa-rotate-left{{else}}fa-xmark{{/if}}"></i>
+                            </a>
+                          </div>
+                        {{/each}}
+                      </div>
+                    {{else}}
+                      <p class="emote-strip-empty">No portraits cached for this folder</p>
+                    {{/if}}
+                  </div>
+                </li>
+              {{/each}}
+            </ul>
+          </section>
+        {{/each}}
       {{else}}
         <p>Drag actors, folders, or parties here</p>
       {{/if}}
     </div>
     <div class="selector-footer">
-      <button class="clear-actors" title="Remove all actors from the list" {{#unless selectedActors.length}}disabled{{/unless}}>
+      <button class="clear-actors" title="Remove all actors from the list" {{#unless hasActors}}disabled{{/unless}}>
         <i class="fas fa-trash"></i> Clear All
+      </button>
+      <button class="new-group" title="Add an empty group">
+        <i class="fas fa-folder-plus"></i> New Group
       </button>
       <button class="reset-changes" title="Discard unsaved changes">
         <i class="fas fa-rotate-left"></i> Reset Changes

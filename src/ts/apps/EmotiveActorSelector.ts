@@ -14,8 +14,8 @@ export default class EmotiveActorSelector extends Application {
   private folders: Record<string, string> = {};
   protected override _dragDrop: DragDrop[] = [];
   private draggedItem: HTMLElement | null = null;
-  private dragStartY: number = 0;
-  private dropTargetIndex: number | null = null;
+  // pointer distance from the dragged row's middle
+  private grabOffset: number = 0;
   // uuids whose emote strip is open, kept across re-renders
   private expanded = new Set<string>();
 
@@ -93,6 +93,9 @@ export default class EmotiveActorSelector extends Application {
       return;
     }
 
+    // drops land in the folder under the pointer
+    const groupId = (event.target as HTMLElement).closest<HTMLElement>(".actor-group")?.dataset.groupId;
+
     try {
       const raw = event.dataTransfer.getData("text/plain");
       if (!raw) return;
@@ -106,13 +109,13 @@ export default class EmotiveActorSelector extends Application {
         // pf2e party actors hold their characters in members
         const members = (actor as Actor & { members?: Actor[] }).members;
         if ((actor.type as string) === "party" && Array.isArray(members)) {
-          const added = this._addActors(members.flatMap(m => m.uuid ?? []));
+          const added = this._addActors(members.flatMap(m => m.uuid ?? []), groupId);
           if (!members.length) ui.notifications?.info(`${actor.name} has no members`);
           else if (added) ui.notifications?.info(`Added ${added} actor(s) from ${actor.name}`);
           return;
         }
 
-        this._addActors([data.uuid]);
+        this._addActors([data.uuid], groupId);
       } else if (data.type === "Folder") {
         const folder = await fromUuid(data.uuid) as Folder | null;
         if (folder?.type !== "Actor") return;
@@ -125,7 +128,7 @@ export default class EmotiveActorSelector extends Application {
           return;
         }
 
-        const added = this._addActors(uuids);
+        const added = this._addActors(uuids, groupId);
         if (added) ui.notifications?.info(`Added ${added} actor(s) from ${folder.name}`);
       }
     } catch (err) {
@@ -133,8 +136,8 @@ export default class EmotiveActorSelector extends Application {
     }
   }
 
-  // appends uuids not already listed to the last group, up to the actor limit
-  private _addActors(uuids: string[]): number {
+  // appends uuids not already listed, up to the actor limit; last group by default
+  private _addActors(uuids: string[], groupId?: string): number {
     const actorLimit = getActorLimit();
     const configs = getActorConfigs();
     const listed = this.allUuids;
@@ -152,7 +155,7 @@ export default class EmotiveActorSelector extends Application {
     if (!toAdd.length) return 0;
 
     if (!this.groups.length) this.groups.push({ id: DEFAULT_GROUP_ID, actors: [] });
-    const target = this.groups[this.groups.length - 1];
+    const target = this.groups.find(group => group.id === groupId) ?? this.groups[this.groups.length - 1];
     for (const uuid of toAdd) {
       target.actors.push(uuid);
       this.folders[uuid] = configs[uuid]?.portraitFolder || "";
@@ -261,35 +264,36 @@ export default class EmotiveActorSelector extends Application {
   override async getData() {
     const configs = getActorConfigs();
 
-    // flat list for now; rows carry their group id
-    const rows = this.groups.flatMap(group => group.actors.map(uuid => ({ uuid, groupId: group.id })));
-    const enrichedActors = await Promise.all(
-      rows.map(async ({ uuid, groupId }) => {
-        const actor = await fromUuid(uuid) as Actor;
-        const currentPortrait = actor?.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
-        const cached = configs[uuid]?.cachedPortraits ?? [];
-        const excluded = new Set(configs[uuid]?.excludedPortraits ?? []);
-        return {
-          uuid,
-          groupId,
-          name: actor?.name,
-          img: actor?.img,
-          portraitFolder: this.folders[uuid] || "",
-          expanded: this.expanded.has(uuid),
-          portraits: cached.map(path => ({
-            path,
-            name: path.split('/').pop()?.split('.')[0] || 'Unknown',
-            current: path === currentPortrait,
-            excluded: excluded.has(path)
-          }))
-        };
-      })
-    );
+    const enrichActor = async (uuid: string) => {
+      const actor = await fromUuid(uuid) as Actor;
+      const currentPortrait = actor?.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
+      const cached = configs[uuid]?.cachedPortraits ?? [];
+      const excluded = new Set(configs[uuid]?.excludedPortraits ?? []);
+      return {
+        uuid,
+        name: actor?.name,
+        img: actor?.img,
+        portraitFolder: this.folders[uuid] || "",
+        expanded: this.expanded.has(uuid),
+        portraits: cached.map(path => ({
+          path,
+          name: path.split('/').pop()?.split('.')[0] || 'Unknown',
+          current: path === currentPortrait,
+          excluded: excluded.has(path)
+        }))
+      };
+    };
 
-    console.log(CONSTANTS.DEBUG_PREFIX, "selectedActors:", enrichedActors);
+    const groups = await Promise.all(this.groups.map(async (group, index) => ({
+      id: group.id,
+      number: index + 1,
+      actors: await Promise.all(group.actors.map(enrichActor)),
+    })));
 
     return {
-      selectedActors: enrichedActors,
+      groups,
+      hasActors: this.allUuids.length > 0,
+      canRemoveGroups: groups.length > 1,
       previewRows: getSelectorPreviewRows(),
     };
   }
@@ -427,6 +431,12 @@ export default class EmotiveActorSelector extends Application {
     html.find(".clear-actors")
       .on("click", this._onClearActors.bind(this));
 
+    html.find(".new-group")
+      .on("click", this._onNewGroup.bind(this));
+
+    html.find(".remove-group")
+      .on("click", this._onRemoveGroup.bind(this));
+
     html.find(".reset-changes")
       .on("click", this._onResetChanges.bind(this));
 
@@ -554,89 +564,88 @@ export default class EmotiveActorSelector extends Application {
   }
 
   private _onDragHandleMouseDown(event: JQuery.MouseDownEvent): void {
-    const handle = event.currentTarget;
-    const item = handle.closest(".selected-actor") as HTMLElement;
+    const item = (event.currentTarget as HTMLElement).closest<HTMLElement>(".selected-actor");
     if (!item) return;
-  
+
+    const rect = item.getBoundingClientRect();
     this.draggedItem = item;
-    this.dragStartY = event.pageY;
-    this.dropTargetIndex = null;  // Reset new index
-    
+    this.grabOffset = event.clientY - (rect.top + rect.height / 2);
+
     item.classList.add("dragging");
     event.preventDefault();
   }
-  
-  private _onDocumentMouseMove(event: JQuery.MouseMoveEvent): void {
-    if (!this.draggedItem) return;
-  
-    const list = this.draggedItem.parentElement;
-    if (!list) return;
-  
-    const items = Array.from(list.children) as HTMLElement[];
-    const draggedIndex = items.indexOf(this.draggedItem);
-    
-    // Calculate mouse movement
-    const mouseY = event.pageY;
-    const deltaY = mouseY - this.dragStartY;
-    
-    // Update position of dragged item
-    this.draggedItem.style.transform = `translateY(${deltaY}px)`;
-    
-    // Find new position
-    const draggedRect = this.draggedItem.getBoundingClientRect();
-    const draggedMiddle = draggedRect.top + draggedRect.height / 2;
-    
-    let potentialdropTargetIndex = draggedIndex;
-    
-    items.forEach((item, index) => {
-      if (item === this.draggedItem) return;
-      
-      const rect = item.getBoundingClientRect();
-      const middle = rect.top + rect.height / 2;
-      
-      if (index < draggedIndex && draggedMiddle < middle) {
-        potentialdropTargetIndex = index;
-      } else if (index > draggedIndex && draggedMiddle > middle) {
-        potentialdropTargetIndex = index;
-      }
+
+  // group list whose folder spans the pointer's height
+  private _groupListAt(y: number): HTMLElement | null {
+    const sections = Array.from(this.element[0].querySelectorAll<HTMLElement>(".actor-group"));
+    const section = sections.find(s => {
+      const rect = s.getBoundingClientRect();
+      return y >= rect.top && y <= rect.bottom;
     });
-    
-    if (potentialdropTargetIndex !== draggedIndex) {
-      if (potentialdropTargetIndex < draggedIndex) {
-        list.insertBefore(this.draggedItem, items[potentialdropTargetIndex]);
-      } else {
-        list.insertBefore(this.draggedItem, items[potentialdropTargetIndex + 1]);
-      }
-      
-      // Reset transform on other items
-      items.forEach(item => {
-        if (item !== this.draggedItem) {
-          item.style.transform = "";
-        }
-      });
-      
-      this.dragStartY = mouseY;
-      this.dropTargetIndex = potentialdropTargetIndex;  // Store the new index
-    }
+    return section?.querySelector<HTMLElement>(".group-actors") ?? null;
   }
-  
+
+  // rows slot in before the first sibling whose middle sits below the dragged row
+  private _onDocumentMouseMove(event: JQuery.MouseMoveEvent): void {
+    const item = this.draggedItem;
+    if (!item) return;
+
+    const center = event.clientY - this.grabOffset;
+    const from = item.parentElement as HTMLElement;
+    const list = this._groupListAt(event.clientY) ?? from;
+
+    const next = (Array.from(list.children) as HTMLElement[])
+      .filter(sibling => sibling !== item)
+      .find(sibling => {
+        const rect = sibling.getBoundingClientRect();
+        return center < rect.top + rect.height / 2;
+      }) ?? null;
+
+    if (item.parentElement !== list || item.nextElementSibling !== next) {
+      list.insertBefore(item, next);
+      from.classList.toggle("empty", !from.children.length);
+      list.classList.remove("empty");
+    }
+
+    // translate from the row's new natural spot back under the pointer
+    item.style.transform = "";
+    const natural = item.getBoundingClientRect();
+    item.style.transform = `translateY(${center - (natural.top + natural.height / 2)}px)`;
+  }
+
+  // dom order is the new draft; folders in order, rows within each
   private _onDocumentMouseUp(_event: JQuery.MouseUpEvent): void {
     if (!this.draggedItem) return;
-    
-    if (this.dropTargetIndex !== null) {
-      // rows keep their group; dom order becomes the order within it
-      const items = Array.from(this.draggedItem.parentElement?.children || []) as HTMLElement[];
-      this.groups = this.groups.map(group => ({
-        id: group.id,
-        actors: items.filter(item => item.dataset.groupId === group.id).map(item => item.dataset.uuid!),
-      }));
-    }
-    
+
     this.draggedItem.style.transform = "";
     this.draggedItem.classList.remove("dragging");
     this.draggedItem = null;
-    this.dragStartY = 0;
-    this.dropTargetIndex = null;
+
+    const lists = Array.from(this.element[0].querySelectorAll<HTMLElement>(".group-actors"));
+    this.groups = lists.map(list => ({
+      id: list.dataset.groupId ?? "",
+      actors: Array.from(list.querySelectorAll<HTMLElement>(":scope > .selected-actor")).map(row => row.dataset.uuid!),
+    }));
+    this.render(false);
+  }
+
+  private _onNewGroup(event: JQuery.ClickEvent): void {
+    event.preventDefault();
+    this.groups.push({ id: foundry.utils.randomID(), actors: [] });
+    this.render(false);
+  }
+
+  // actors fold into the group above, or below for the first one
+  private _onRemoveGroup(event: JQuery.ClickEvent): void {
+    event.preventDefault();
+    const index = this.groups.findIndex(group => group.id === $(event.currentTarget).data("groupId"));
+    if (index < 0 || this.groups.length < 2) return;
+
+    const [removed] = this.groups.splice(index, 1);
+    const into = this.groups[Math.max(0, index - 1)];
+    if (index === 0) into.actors.unshift(...removed.actors);
+    else into.actors.push(...removed.actors);
+    this.render(false);
   }
 
   private async _onClickApplyButton(event: Event): Promise<void> {

@@ -1,8 +1,11 @@
-<div class="emotive-hud{{#if isMinimized}} minimized{{/if}}" data-dock="{{dockSide}}" style="--hud-bg-color: {{backgroundColor}}; --hud-bg-alpha: {{backgroundOpacity}};">
+<div class="emotive-hud{{#if isMinimized}} minimized{{/if}}{{#if unlocked}} unlocked{{/if}}" data-dock="{{dockSide}}" data-group-id="{{groupId}}" style="--hud-bg-color: {{backgroundColor}}; --hud-bg-alpha: {{backgroundOpacity}};">
     <div class="hud-controls" title="Drag to move window">
         {{#if canManage}}
             <button class="control-button open-selector" title="Open Emotive HUD Actor Selector" type="button">
                 <i class="fas fa-bars"></i>
+            </button>
+            <button class="control-button toggle-lock" title="{{#if unlocked}}Lock portraits{{else}}Unlock portraits to reorder and group{{/if}}" type="button">
+                <i class="fas {{#if unlocked}}fa-lock-open{{else}}fa-lock{{/if}}"></i>
             </button>
         {{/if}}
         <button class="control-button toggle-visibility" title="{{#if isMinimized}}Show{{else}}Hide{{/if}} Emotive HUD" type="button">

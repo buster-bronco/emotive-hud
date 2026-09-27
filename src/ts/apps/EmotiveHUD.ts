@@ -1,10 +1,10 @@
 import { EmotiveHUDData, PortraitUpdateData, WindowState, DockSide } from "../types";
 import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
-import { getDisplayGroups, reorderGroup } from "../state";
+import { getDisplayGroups } from "../state";
 import CONSTANTS from "../constants";
 import { canManageHUD, getGame, getModule, swallowNextClick } from "../utils";
 import { buildActorTooltip } from "../tooltips";
-import { setupPortraitDrag } from "../hud/portraitDrag";
+import { DRAGGING_CLASS, setupPortraitDrag } from "../hud/portraitDrag";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -355,6 +355,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   // window drags, resizes and portrait reorders
   private isBusy(): boolean {
     const classes = this.element?.classList;
+    if (document.body.classList.contains(DRAGGING_CLASS)) return true;
     return !!classes && ['dragging', 'resizing', 'reordering'].some(name => classes.contains(name));
   }
 
@@ -433,6 +434,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
     return {
       canManage: canManageHUD(),
+      unlocked: getModule().hud.unlocked,
+      groupId: this.groupId,
       isMinimized,
       columns,
       floatingPortraitWidth,
@@ -475,6 +478,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
+    html.find('.toggle-lock').on('click', () => getModule().hud.toggleLock());
 
     // Position after a short delay to ensure ApplicationV2 has finished its positioning logic
     setTimeout(() => {
@@ -521,15 +525,12 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       setupPortraitDrag({
         root: this.element,
         container,
+        groupId: this.groupId,
         deadZone: EmotiveHUD.DRAG_DEAD_ZONE,
-        canDrag: canManageHUD,
-        onReorder: ids => this.savePortraitOrder(ids),
+        canDrag: () => canManageHUD() && getModule().hud.unlocked,
+        onDrop: drop => getModule().hud.dropPortrait(drop),
       });
     }
-  }
-
-  private async savePortraitOrder(actorIds: string[]): Promise<void> {
-    await reorderGroup(this.groupId, actorIds.map(id => `Actor.${id}`));
   }
 
   // core tooltip manager handles leave/dismiss once activated on the portrait

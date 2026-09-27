@@ -24,6 +24,31 @@ $bar-height: 34px;
     // color-mix blends the tint toward transparent by alpha
     --hud-bg: color-mix(in srgb, var(--hud-bg-color, #000) calc(var(--hud-bg-alpha, 0.35) * 100%), transparent);
 
+    // unlocked grids can be rearranged
+    &.unlocked {
+      .portrait-container {
+        border-style: dashed;
+        border-color: var(--color-border-highlight);
+      }
+
+      .portrait {
+        cursor: grab;
+      }
+
+      .toggle-lock {
+        border-color: var(--color-border-highlight);
+      }
+    }
+
+    // window a carried portrait will land in
+    &.drop-target {
+      .hud-controls,
+      .portrait-container {
+        border-color: rgba(255, 255, 255, 0.6);
+        box-shadow: 0 0 6px rgba(204, 204, 201, 0.4);
+      }
+    }
+
     // idle hud hides its control bar until hovered
     &.bar-autofade .hud-controls {
       transition: opacity 400ms ease;
@@ -286,5 +311,11 @@ $bar-height: 34px;
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  // over empty canvas; dropping spawns a new group window
+  &.new-group {
+    outline: 2px dashed rgba(255, 255, 255, 0.7);
+    outline-offset: 4px;
   }
 }

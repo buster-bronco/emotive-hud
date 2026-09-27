@@ -75,10 +75,9 @@ export const moveActor = async (uuid: string, toGroupId: string, index: number):
 };
 
 // pulls the actors out of their groups into a new one; returns its id
-export const createGroup = async (uuids: string[]): Promise<string> => {
+export const createGroup = async (uuids: string[], id: string = foundry.utils.randomID()): Promise<string> => {
   const state = getHUDState();
   state.groups.forEach(group => group.actors = group.actors.filter(a => !uuids.includes(a)));
-  const id = foundry.utils.randomID();
   state.groups.push({ id, actors: uuids });
   await saveHUDState(state);
   return id;

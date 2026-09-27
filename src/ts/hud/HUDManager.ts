@@ -1,19 +1,36 @@
 import CONSTANTS from "../constants";
 import EmotiveHUD from "../apps/EmotiveHUD";
-import { getDisplayGroups } from "../state";
+import { getWindowState, patchWindowState } from "../settings";
+import { createGroup, getDisplayGroups, moveActor, reorderGroup } from "../state";
 import { PortraitUpdateData } from "../types";
+import { PortraitDrop } from "./portraitDrag";
+
+// must match .portrait-container padding + border and the bar above it in emotive-hud.scss
+const PORTRAIT_INSET = 16 + 1;
+const BAR_OFFSET = 34 + 4;
 
 // keeps one hud window open per displayed group
 export default class HUDManager {
   private windows = new Map<string, EmotiveHUD>();
   // setting hooks can fire during ready migration; wait for start()
   private started = false;
+  // portrait dragging gate; resets to locked every load
+  private _unlocked = false;
 
   constructor() {
     Hooks.on(`${CONSTANTS.MODULE_ID}.hudStateChanged`, () => this.sync());
     Hooks.on(`${CONSTANTS.MODULE_ID}.actorLimitChanged`, () => this.sync());
     Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => this.renderAll());
     Hooks.on(`${CONSTANTS.MODULE_ID}.appearanceChanged`, () => this.renderAll());
+  }
+
+  get unlocked(): boolean {
+    return this._unlocked;
+  }
+
+  toggleLock(): void {
+    this._unlocked = !this._unlocked;
+    this.renderAll();
   }
 
   start(): void {
@@ -52,5 +69,36 @@ export default class HUDManager {
   // only the window holding that actor finds its portrait
   handlePortraitUpdate(data: PortraitUpdateData): void {
     this.windows.forEach(hud => hud.handlePortraitUpdate(data));
+  }
+
+  async dropPortrait(drop: PortraitDrop): Promise<void> {
+    const uuid = `Actor.${drop.actorId}`;
+    try {
+      if (!drop.toGroupId) {
+        await this.spawnGroup(uuid, drop);
+      } else if (drop.toGroupId === drop.fromGroupId) {
+        await reorderGroup(drop.toGroupId, (drop.order ?? []).map(id => `Actor.${id}`));
+      } else {
+        const index = drop.order ? drop.order.indexOf(drop.actorId) : Infinity;
+        await moveActor(uuid, drop.toGroupId, index);
+      }
+    } catch (error) {
+      console.error(CONSTANTS.DEBUG_PREFIX, 'Error moving portrait:', error);
+      ui.notifications?.error("Failed to move portrait");
+      // drag left the dom rearranged
+      this.renderAll();
+    }
+  }
+
+  // new window lands where the ghost was dropped, sized like its source
+  private async spawnGroup(uuid: string, drop: PortraitDrop): Promise<void> {
+    const id = foundry.utils.randomID();
+    const source = getWindowState(drop.fromGroupId);
+    await patchWindowState(id, {
+      position: { left: drop.point.left - PORTRAIT_INSET, top: drop.point.top - PORTRAIT_INSET - BAR_OFFSET },
+      columns: source.columns,
+      width: source.width,
+    });
+    await createGroup([uuid], id);
   }
 }

@@ -32,6 +32,8 @@ export interface TooltipField {
 
 export interface EmotiveHUDData extends foundry.applications.api.ApplicationV2.RenderContext {
   canManage: boolean;
+  unlocked: boolean;
+  groupId: string;
   columns: number;
   isMinimized: boolean;
   portraits: PortraitData[];

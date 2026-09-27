@@ -77,7 +77,8 @@
     }
   }
 
-  .reset-changes {
+  .reset-changes,
+  .new-group {
     flex: 0 0 auto;
     width: auto;
     border: none;
@@ -96,6 +97,63 @@
     list-style: none;
     padding: 0;
     margin: 0;
+  }
+
+  // one folder per hud window
+  .actor-group {
+    text-align: left;
+    margin-bottom: 8px;
+  }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+
+    .group-count {
+      font-weight: normal;
+      opacity: 0.6;
+    }
+
+    .remove-group {
+      flex: 0 0 auto;
+      width: auto;
+      margin-left: auto;
+      padding: 0 6px;
+      line-height: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.6;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  // indent under the folder header
+  .group-actors {
+    margin-left: 16px;
+    min-height: 8px;
+
+    &.empty {
+      min-height: 32px;
+      margin-top: 4px;
+      border: 1px dashed rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &::after {
+        content: "Drag actors here";
+        opacity: 0.6;
+      }
+    }
   }
 
   .selected-actor {
