@@ -29,7 +29,9 @@
     max-height: $grid-height;
     overflow-y: auto;
     padding-right: $gap-size;
-    
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-dark) transparent;
+
     .emotion-item {
       width: $item-size;
       height: $item-size;
@@ -48,6 +50,33 @@
         height: 100%;
         object-fit: cover;
       }
+    }
+  }
+
+  .picker-controls {
+    display: flex;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border-dark);
+  }
+
+  // foundry button defaults assume a light frame
+  .reset-portrait {
+    flex: 1;
+    width: 100%;
+    margin: 0;
+    padding: 4px 8px;
+    line-height: 1.2;
+    color: var(--color-text-light-highlight);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border-dark);
+    border-radius: 3px;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-border-highlight);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 5px var(--color-shadow-primary);
     }
   }
 }
