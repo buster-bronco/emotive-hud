@@ -43,6 +43,16 @@ export const allHudActorUuids = (state: HUDState = getHUDState()): string[] =>
 export const findGroupOf = (uuid: string, state: HUDState = getHUDState()): HUDGroup | undefined =>
   state.groups.find(group => group.actors.includes(uuid));
 
+// groups holding the user's character, else any owned actor
+export const getViewerGroupIds = (state: HUDState = getHUDState()): Set<string> => {
+  const game = getGame();
+  const character = game.user?.character;
+  const owns = (uuid: string) => character
+    ? uuid === character.uuid
+    : !!(foundry.utils.fromUuidSync(uuid) as Actor | null)?.isOwner;
+  return new Set(state.groups.filter(group => group.actors.some(owns)).map(group => group.id));
+};
+
 // actor limit counts across groups in order; always at least one window for the bar
 export const getDisplayGroups = (state: HUDState = getHUDState()): HUDGroup[] => {
   let room = getActorLimit();

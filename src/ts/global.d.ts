@@ -20,6 +20,7 @@ declare global {
     "emotive-hud.confirmFolderSync": boolean;
     "emotive-hud.clickToFocus": boolean;
     "emotive-hud.tooltipsEnabled": boolean;
+    "emotive-hud.groupTooltipLock": boolean;
     "emotive-hud.tooltipFields": Record<string, boolean>;
   }
 

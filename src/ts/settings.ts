@@ -175,6 +175,15 @@ export const registerSettings = function() {
     default: true,
   });
 
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'groupTooltipLock', {
+    name: "Lock Tooltips to Own Group",
+    hint: "Players only see portrait tooltips in the group holding their assigned character, or any actor they own if none is assigned.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   // "scope.fieldid" -> shown; missing keys fall back to the field default
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'tooltipFields', {
     name: 'Tooltip Fields',
@@ -340,6 +349,10 @@ export const getClickToFocus = (): boolean => {
 
 export const getTooltipsEnabled = (): boolean => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipsEnabled') as boolean;
+};
+
+export const getGroupTooltipLock = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'groupTooltipLock') as boolean;
 };
 
 export const getTooltipFieldToggles = (): Record<string, boolean> => {

@@ -1,6 +1,6 @@
 import { EmotiveHUDData, PortraitUpdateData, WindowState, DockSide } from "../types";
-import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getDefaultHUDColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
-import { getDisplayGroups } from "../state";
+import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getGroupTooltipLock, getDefaultHUDColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
+import { getDisplayGroups, getViewerGroupIds } from "../state";
 import CONSTANTS from "../constants";
 import { canManageHUD, getGame, getModule, swallowNextClick } from "../utils";
 import { buildActorTooltip } from "../tooltips";
@@ -575,6 +575,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private async showPortraitTooltip(portrait: HTMLElement): Promise<void> {
     if (!getTooltipsEnabled() || !portrait.matches(':hover')) return;
     if (this.isBusy()) return;
+    if (getGroupTooltipLock() && !canManageHUD() && !getViewerGroupIds().has(this.groupId)) return;
     const pickerOpen = () => getModule().emotivePortraitPicker.actorId === portrait.dataset.actorId;
     if (pickerOpen()) return;
 
