@@ -29,6 +29,10 @@ export default class EmotivePortraitPicker extends Application {
     }) as unknown as Application.Options;
   }
 
+  get actorId(): string | null {
+    return this._actorId;
+  }
+
   async showForActor(actorId: string, anchor: HTMLElement): Promise<void> {
     console.log(CONSTANTS.DEBUG_PREFIX, "Showing picker for actor:", actorId);
 
@@ -43,6 +47,8 @@ export default class EmotivePortraitPicker extends Application {
 
     this._actorId = actorId;
     this._anchor = anchor;
+    // drop a tooltip that was already up on this portrait
+    getGame().tooltip?.deactivate();
     this.render(true);
   }
 
@@ -169,6 +175,7 @@ export default class EmotivePortraitPicker extends Application {
   }
 
   override async close(options?: Application.CloseOptions): Promise<void> {
+    this._actorId = null;
     if (this.element) {
       this.element.fadeOut(_fadeOutTime);
       await new Promise(resolve => setTimeout(resolve, _fadeOutTime));

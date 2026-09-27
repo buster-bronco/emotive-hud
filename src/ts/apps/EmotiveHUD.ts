@@ -553,14 +553,15 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private async showPortraitTooltip(portrait: HTMLElement): Promise<void> {
     if (!getTooltipsEnabled() || !portrait.matches(':hover')) return;
     if (this.isBusy()) return;
-    if (getModule().emotivePortraitPicker.rendered) return;
+    const pickerOpen = () => getModule().emotivePortraitPicker.actorId === portrait.dataset.actorId;
+    if (pickerOpen()) return;
 
     const actor = getGame().actors?.get(portrait.dataset.actorId ?? '');
     if (!actor) return;
 
     const html = await buildActorTooltip(actor);
     // hover may have ended while the template rendered
-    if (!html || !portrait.matches(':hover')) return;
+    if (!html || !portrait.matches(':hover') || pickerOpen()) return;
 
     const tooltip = getGame().tooltip;
     if (!tooltip) return;
