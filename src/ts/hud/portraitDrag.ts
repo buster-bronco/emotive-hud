@@ -19,7 +19,8 @@ interface PortraitDragOptions {
   groupId: string;
   deadZone: number;
   canDrag: () => boolean;
-  onDrop: (drop: PortraitDrop) => void;
+  // canvas drops keep the ghost up until this settles
+  onDrop: (drop: PortraitDrop) => void | Promise<void>;
 }
 
 // set on body so every window knows a portrait is being carried
@@ -163,16 +164,21 @@ export function setupPortraitDrag({ root, container, groupId, deadZone, canDrag,
       highlight(null);
 
       if (!ghost) return;
-      const rect = ghost.getBoundingClientRect();
-      ghost.remove();
+      const carried = ghost;
+      const rect = carried.getBoundingClientRect();
       swallowNextClick();
 
-      if (cancelled) {
-        goHome();
+      const drop = cancelled ? null : buildDrop({ left: rect.left, top: rect.top });
+      if (cancelled) goHome();
+
+      if (drop && !drop.toGroupId) {
+        // ghost stands in for the new window until it renders
+        portrait.style.visibility = 'hidden';
+        Promise.resolve(onDrop(drop)).finally(() => carried.remove());
         return;
       }
 
-      const drop = buildDrop({ left: rect.left, top: rect.top });
+      carried.remove();
       if (drop) onDrop(drop);
     };
 

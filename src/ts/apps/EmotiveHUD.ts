@@ -79,6 +79,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   override _insertElement(element: HTMLElement): void {
     document.body.appendChild(element);
+    // hidden until the first updateWidgetPosition places it
+    element.style.visibility = 'hidden';
 
     element.style.position = 'fixed';
     element.style.zIndex = '100';
@@ -108,6 +110,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     this.hasBeenPositioned = true;
+    this.element.style.visibility = '';
+    getModule().hud.notifyShown(this.groupId);
   }
 
   private setDefaultPosition(): void {

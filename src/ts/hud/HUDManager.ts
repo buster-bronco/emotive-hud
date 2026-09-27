@@ -8,6 +8,8 @@ import { PortraitDrop } from "./portraitDrag";
 // must match .portrait-container padding + border and the bar above it in emotive-hud.scss
 const PORTRAIT_INSET = 16 + 1;
 const BAR_OFFSET = 34 + 4;
+// fallback so a lost render never strands a drag ghost
+const SHOWN_TIMEOUT = 2000;
 
 // keeps one hud window open per displayed group
 export default class HUDManager {
@@ -16,6 +18,8 @@ export default class HUDManager {
   private started = false;
   // portrait dragging gate; resets to locked every load
   private _unlocked = false;
+  // group id -> resolvers waiting for that window's first placement
+  private shownWaiters = new Map<string, () => void>();
 
   constructor() {
     Hooks.on(`${CONSTANTS.MODULE_ID}.hudStateChanged`, () => this.sync());
@@ -66,6 +70,23 @@ export default class HUDManager {
     this.windows.forEach(hud => hud.render());
   }
 
+  notifyShown(groupId: string): void {
+    this.shownWaiters.get(groupId)?.();
+  }
+
+  // resolves once the group's window is placed on screen
+  private whenShown(groupId: string): Promise<void> {
+    return new Promise(resolve => {
+      const done = () => {
+        window.clearTimeout(timer);
+        this.shownWaiters.delete(groupId);
+        resolve();
+      };
+      const timer = window.setTimeout(done, SHOWN_TIMEOUT);
+      this.shownWaiters.set(groupId, done);
+    });
+  }
+
   // only the window holding that actor finds its portrait
   handlePortraitUpdate(data: PortraitUpdateData): void {
     this.windows.forEach(hud => hud.handlePortraitUpdate(data));
@@ -90,7 +111,7 @@ export default class HUDManager {
     }
   }
 
-  // new window lands where the ghost was dropped, sized like its source
+  // new window lands where the ghost was dropped, sized like its source; resolves once it shows
   private async spawnGroup(uuid: string, drop: PortraitDrop): Promise<void> {
     const id = foundry.utils.randomID();
     const source = getWindowState(drop.fromGroupId);
@@ -99,6 +120,8 @@ export default class HUDManager {
       columns: source.columns,
       width: source.width,
     });
+    const shown = this.whenShown(id);
     await createGroup([uuid], id);
+    await shown;
   }
 }
