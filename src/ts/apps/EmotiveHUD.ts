@@ -1,5 +1,5 @@
 import { EmotiveHUDData, PortraitUpdateData, WindowState, DockSide } from "../types";
-import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
+import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getDefaultHUDColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
 import { getDisplayGroups } from "../state";
 import CONSTANTS from "../constants";
 import { canManageHUD, getGame, getModule, swallowNextClick } from "../utils";
@@ -433,7 +433,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
     const actors = this.getActorsToShow();
-    const { minimized: isMinimized, columns, width: floatingPortraitWidth } = this.windowState;
+    const { minimized: isMinimized, columns, width: floatingPortraitWidth, color } = this.windowState;
     const emotivePortraitRatio = getPortraitRatio();
 
     return {
@@ -443,7 +443,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       isMinimized,
       columns,
       floatingPortraitWidth,
-      backgroundColor: getHUDBackgroundColor(),
+      backgroundColor: color ?? getDefaultHUDColor(),
       backgroundOpacity: getHUDBackgroundOpacity(),
       // last dock state keeps the bar oriented across re-renders
       dockSide: this.dock.side ?? 'none',
@@ -483,6 +483,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
     html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
     html.find('.toggle-lock').on('click', () => getModule().hud.toggleLock());
+    this.setupTintPicker();
 
     // Position after a short delay to ensure ApplicationV2 has finished its positioning logic
     setTimeout(() => {
@@ -535,6 +536,24 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
         onDrop: drop => getModule().hud.dropPortrait(drop),
       });
     }
+  }
+
+  // input previews the tint live; change commits it to this client's window state
+  private setupTintPicker(): void {
+    const hud = this.element?.querySelector<HTMLElement>('.emotive-hud');
+    const button = hud?.querySelector<HTMLButtonElement>('.pick-tint');
+    const input = hud?.querySelector<HTMLInputElement>('.tint-input');
+    if (!hud || !button || !input) return;
+
+    button.addEventListener('click', () => {
+      try {
+        input.showPicker();
+      } catch {
+        input.click();
+      }
+    });
+    input.addEventListener('input', () => hud.style.setProperty('--hud-bg-color', input.value));
+    input.addEventListener('change', () => patchWindowState(this.groupId, { color: input.value }));
   }
 
   // core tooltip manager handles leave/dismiss once activated on the portrait

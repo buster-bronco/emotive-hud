@@ -116,6 +116,17 @@ $bar-height: 34px;
         cursor: grabbing;
       }
 
+      // native color picker anchors to this; the palette button opens it
+      .tint-input {
+        position: absolute;
+        width: 0;
+        height: 0;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
+
       .control-button {
         width: 24px;
         height: 24px;

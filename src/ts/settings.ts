@@ -94,16 +94,13 @@ export const registerSettings = function() {
     }
   });
 
+  // legacy global tint; now only the default for windows without their own color
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudBackgroundColor', {
     name: "HUD Background Color",
-    hint: "Tint color behind your HUD's portraits and buttons.",
     scope: "client",
-    config: true,
+    config: false,
     type: new (foundry as any).data.fields.ColorField({ nullable: false, initial: "#000000" }),
     default: "#000000",
-    onChange: () => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
-    }
   });
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudBackgroundOpacity', {
@@ -313,8 +310,10 @@ export const getPortraitRatio = (): number => {
   return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
 }
 
-export const getHUDBackgroundColor = (): string => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor') as string;
+// color inputs only take #rrggbb
+export const getDefaultHUDColor = (): string => {
+  const color = String(getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor') ?? '');
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : '#000000';
 }
 
 export const getHUDBackgroundOpacity = (): number => {
@@ -358,6 +357,16 @@ const getWindowStates = (): Record<string, WindowState> => {
 // unknown group ids get default layout
 export const getWindowState = (groupId: string): WindowState => {
   return { ...DEFAULT_WINDOW_STATE, ...getWindowStates()[groupId] };
+};
+
+// drops window states for groups that no longer exist
+export const pruneWindowStates = async (keep: Set<string>): Promise<void> => {
+  const states = getWindowStates();
+  const stale = Object.keys(states).filter(id => !keep.has(id));
+  if (!stale.length) return;
+  const pruned = foundry.utils.deepClone(states);
+  stale.forEach(id => delete pruned[id]);
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'windowStates', pruned);
 };
 
 export const patchWindowState = async (groupId: string, patch: Partial<WindowState>): Promise<void> => {

@@ -1,7 +1,7 @@
 import CONSTANTS from "../constants";
 import EmotiveHUD from "../apps/EmotiveHUD";
-import { getWindowState, patchWindowState } from "../settings";
-import { createGroup, getDisplayGroups, moveActor, reorderGroup } from "../state";
+import { getWindowState, patchWindowState, pruneWindowStates } from "../settings";
+import { createGroup, getDisplayGroups, getHUDState, moveActor, reorderGroup } from "../state";
 import { PortraitUpdateData } from "../types";
 import { PortraitDrop } from "./portraitDrag";
 
@@ -64,6 +64,10 @@ export default class HUDManager {
       this.windows.set(group.id, hud);
       hud.render(true);
     });
+
+    // spawning groups have a window state before they reach hud state
+    const keep = new Set([...ids, ...getHUDState().groups.map(group => group.id), ...this.shownWaiters.keys()]);
+    pruneWindowStates(keep);
   }
 
   renderAll(): void {
@@ -115,12 +119,12 @@ export default class HUDManager {
   private async spawnGroup(uuid: string, drop: PortraitDrop): Promise<void> {
     const id = foundry.utils.randomID();
     const source = getWindowState(drop.fromGroupId);
+    const shown = this.whenShown(id);
     await patchWindowState(id, {
       position: { left: drop.point.left - PORTRAIT_INSET, top: drop.point.top - PORTRAIT_INSET - BAR_OFFSET },
       columns: source.columns,
       width: source.width,
     });
-    const shown = this.whenShown(id);
     await createGroup([uuid], id);
     await shown;
   }
