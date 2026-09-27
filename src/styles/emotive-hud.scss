@@ -147,9 +147,12 @@ $bar-height: 34px;
         aspect-ratio: var(--portrait-ratio);
         width: var(--floatingPortraitWidth);
         cursor: pointer;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
 
+        // fainter than the focus flash glow
         &:hover {
-          border-color: var(--color-border-highlight);
+          border-color: rgba(255, 255, 255, 0.35);
+          box-shadow: 0 0 4px rgba(204, 204, 201, 0.2);
         }
 
         &.flash {
