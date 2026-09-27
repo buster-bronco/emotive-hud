@@ -74,11 +74,13 @@ export const moveActor = async (uuid: string, toGroupId: string, index: number):
   await saveHUDState(state);
 };
 
-// pulls the actors out of their groups into a new one; returns its id
+// pulls the actors out of their groups into a new one after the first source; returns its id
 export const createGroup = async (uuids: string[], id: string = foundry.utils.randomID()): Promise<string> => {
   const state = getHUDState();
+  // group order decides who the actor limit hides
+  const source = state.groups.findIndex(group => group.actors.some(a => uuids.includes(a)));
   state.groups.forEach(group => group.actors = group.actors.filter(a => !uuids.includes(a)));
-  state.groups.push({ id, actors: uuids });
+  state.groups.splice(source < 0 ? state.groups.length : source + 1, 0, { id, actors: uuids });
   await saveHUDState(state);
   return id;
 };
