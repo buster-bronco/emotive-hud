@@ -429,6 +429,9 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     super._onClose(options);
     window.clearTimeout(this.barFadeTimer);
     this.barFadeBound = false;
+    this.sidebarObserver?.disconnect();
+    this.sidebarObserver = null;
+    clearTimeout((this as any).repositionTimeout);
   }
 
   override async _prepareContext(_options: any): Promise<EmotiveHUDData> {

@@ -50,7 +50,8 @@ export default class HUDManager {
 
     for (const [id, hud] of this.windows) {
       if (ids.has(id)) continue;
-      hud.close();
+      // avoid animation to prevent a flash of the window reappearing after the group is removed
+      hud.close({ animate: false });
       this.windows.delete(id);
     }
 
