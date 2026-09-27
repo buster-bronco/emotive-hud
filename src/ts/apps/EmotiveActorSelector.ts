@@ -1,13 +1,17 @@
 import { CONSTANTS } from "../constants";
-import { getActorConfigs, getActorLimit, getConfirmFolderSync, getHUDState, getSelectorPreviewRows, saveActorFolders, setConfirmFolderSync, setHUDState, setPortraitExcluded, syncActorConfigs, updateActorConfig } from "../settings";
-import { ActorConfig } from '../types';
-import { emitHUDRefresh, emitPortraitUpdated } from "../sockets";
-import { getGame, getModule } from "../utils";
+import { getActorConfigs, getActorLimit, getConfirmFolderSync, getSelectorPreviewRows, saveActorFolders, setConfirmFolderSync, setPortraitExcluded, syncActorConfigs, updateActorConfig } from "../settings";
+import { allHudActorUuids, DEFAULT_GROUP_ID, getHUDState, saveHUDState } from "../state";
+import { HUDGroup } from '../types';
+import { emitPortraitUpdated } from "../sockets";
+import { getGame } from "../utils";
 
 const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
 export default class EmotiveActorSelector extends Application {
-  private selectedActors: ActorConfig[] = [];
+  // unsaved group draft; written to hudstate on apply
+  private groups: HUDGroup[] = [];
+  // uuid -> portrait folder draft
+  private folders: Record<string, string> = {};
   protected override _dragDrop: DragDrop[] = [];
   private draggedItem: HTMLElement | null = null;
   private dragStartY: number = 0;
@@ -38,19 +42,21 @@ export default class EmotiveActorSelector extends Application {
   }
 
   private async _loadFromSettings(): Promise<void> {
-    const hudState = getHUDState();
     const configs = getActorConfigs();
-    
-    // Load actors in their correct order from HUD state
-    this.selectedActors = hudState.actors
-      .sort((a, b) => a.position - b.position)
-      .map(({uuid}) => {
-        const config = configs[uuid];
-        return {
-          uuid,
-          portraitFolder: config?.portraitFolder || ""
-        };
-      });
+    this.groups = getHUDState().groups;
+    this.folders = Object.fromEntries(
+      allHudActorUuids({ groups: this.groups }).map(uuid => [uuid, configs[uuid]?.portraitFolder || ""])
+    );
+  }
+
+  // fresh draft each open; the hud can reorder while closed
+  open(): void {
+    if (!this.rendered) this._loadFromSettings();
+    this.render(true);
+  }
+
+  private get allUuids(): string[] {
+    return allHudActorUuids({ groups: this.groups });
   }
 
   protected override _canDragStart(selector: DragDrop.DragSelector): boolean {
@@ -127,12 +133,13 @@ export default class EmotiveActorSelector extends Application {
     }
   }
 
-  // appends uuids not already listed, up to the actor limit
+  // appends uuids not already listed to the last group, up to the actor limit
   private _addActors(uuids: string[]): number {
     const actorLimit = getActorLimit();
     const configs = getActorConfigs();
-    const fresh = [...new Set(uuids)].filter(uuid => !this.selectedActors.some(a => a.uuid === uuid));
-    const room = Math.max(0, actorLimit - this.selectedActors.length);
+    const listed = this.allUuids;
+    const fresh = [...new Set(uuids)].filter(uuid => !listed.includes(uuid));
+    const room = Math.max(0, actorLimit - listed.length);
     const toAdd = fresh.slice(0, room);
 
     if (fresh.length > toAdd.length) {
@@ -144,11 +151,11 @@ export default class EmotiveActorSelector extends Application {
 
     if (!toAdd.length) return 0;
 
+    if (!this.groups.length) this.groups.push({ id: DEFAULT_GROUP_ID, actors: [] });
+    const target = this.groups[this.groups.length - 1];
     for (const uuid of toAdd) {
-      this.selectedActors.push({
-        uuid,
-        portraitFolder: configs[uuid]?.portraitFolder || ""
-      });
+      target.actors.push(uuid);
+      this.folders[uuid] = configs[uuid]?.portraitFolder || "";
     }
 
     this.render(false);
@@ -160,8 +167,8 @@ export default class EmotiveActorSelector extends Application {
     const row = (event.target as HTMLElement).closest<HTMLElement>(".selected-actor");
     this.element.find(".file-drop-target").removeClass("file-drop-target");
 
-    const actor = this.selectedActors.find(a => a.uuid === row?.dataset.uuid);
-    if (!actor) {
+    const uuid = row?.dataset.uuid;
+    if (!uuid || !this.allUuids.includes(uuid)) {
       ui.notifications?.warn("Drop portraits onto an actor row");
       return;
     }
@@ -172,22 +179,21 @@ export default class EmotiveActorSelector extends Application {
     }
     if (!images.length) return;
 
-    this._uploadPortraits(actor, images);
+    this._uploadPortraits(uuid, images);
   }
 
   private async _onSelectPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid');
-    const actor = this.selectedActors.find(a => a.uuid === uuid);
-    if (!actor) return;
-  
+    const uuid = $(event.currentTarget).data('uuid') as string;
+    if (!this.allUuids.includes(uuid)) return;
+
     const fp = new FilePicker({
       type: "folder",
       allowUpload: true,
       displayMode: "images",
       callback: async (path: string) => {
         try {
-          actor.portraitFolder = path;
+          this.folders[uuid] = path;
           this.render(true);
         } catch (error) {
           console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
@@ -195,7 +201,7 @@ export default class EmotiveActorSelector extends Application {
         }
       },
     });
-    fp.browse( actor.portraitFolder || "");
+    fp.browse(this.folders[uuid] || "");
   }
 
   private async _onClickActorPortrait(event: JQuery.ClickEvent): Promise<void> {
@@ -210,14 +216,15 @@ export default class EmotiveActorSelector extends Application {
   private async _onRemoveActor(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     const uuid = $(event.currentTarget).data('uuid');
-    this.selectedActors = this.selectedActors.filter(actor => actor.uuid !== uuid);
+    this.groups.forEach(group => group.actors = group.actors.filter(a => a !== uuid));
+    delete this.folders[uuid];
     this.render(false);
   }
 
   // dialogv2.confirm resolves true on yes, false on no, null on close
   private async _onClearActors(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
-    if (!this.selectedActors.length) return;
+    if (!this.allUuids.length) return;
 
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       window: { title: "Clear All Actors" },
@@ -226,7 +233,8 @@ export default class EmotiveActorSelector extends Application {
     });
     if (!confirmed) return;
 
-    this.selectedActors = [];
+    this.groups = [];
+    this.folders = {};
     this.expanded.clear();
     this.render(false);
   }
@@ -253,18 +261,21 @@ export default class EmotiveActorSelector extends Application {
   override async getData() {
     const configs = getActorConfigs();
 
+    // flat list for now; rows carry their group id
+    const rows = this.groups.flatMap(group => group.actors.map(uuid => ({ uuid, groupId: group.id })));
     const enrichedActors = await Promise.all(
-      this.selectedActors.map(async (actorRef) => {
-        const actor = await fromUuid(actorRef.uuid) as Actor;
+      rows.map(async ({ uuid, groupId }) => {
+        const actor = await fromUuid(uuid) as Actor;
         const currentPortrait = actor?.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
-        const cached = configs[actorRef.uuid]?.cachedPortraits ?? [];
-        const excluded = new Set(configs[actorRef.uuid]?.excludedPortraits ?? []);
+        const cached = configs[uuid]?.cachedPortraits ?? [];
+        const excluded = new Set(configs[uuid]?.excludedPortraits ?? []);
         return {
-          ...actorRef,
+          uuid,
+          groupId,
           name: actor?.name,
           img: actor?.img,
-          portraitFolder: actorRef.portraitFolder || "",
-          expanded: this.expanded.has(actorRef.uuid),
+          portraitFolder: this.folders[uuid] || "",
+          expanded: this.expanded.has(uuid),
           portraits: cached.map(path => ({
             path,
             name: path.split('/').pop()?.split('.')[0] || 'Unknown',
@@ -350,11 +361,9 @@ export default class EmotiveActorSelector extends Application {
 
   private async _onSyncPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid');
-    const actor = this.selectedActors.find(a => a.uuid === uuid);
-    if (!actor) return;
-
-    if (!actor.portraitFolder) {
+    const uuid = $(event.currentTarget).data('uuid') as string;
+    const portraitFolder = this.folders[uuid];
+    if (!portraitFolder) {
       ui.notifications?.warn("Select a portrait folder before syncing");
       return;
     }
@@ -362,7 +371,7 @@ export default class EmotiveActorSelector extends Application {
     if (!(await this._confirmFolderSync())) return;
 
     try {
-      await syncActorConfigs([actor]);
+      await syncActorConfigs([{ uuid, portraitFolder }]);
       ui.notifications?.info("Portrait folder synced");
       this.render(false);
     } catch (error) {
@@ -470,9 +479,8 @@ export default class EmotiveActorSelector extends Application {
 
   private async _onImportPortraits(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid');
-    const actor = this.selectedActors.find(a => a.uuid === uuid);
-    if (!actor) return;
+    const uuid = $(event.currentTarget).data('uuid') as string;
+    if (!this.allUuids.includes(uuid)) return;
 
     // hidden file input opens the os file dialog
     const input = document.createElement('input');
@@ -482,18 +490,18 @@ export default class EmotiveActorSelector extends Application {
 
     input.onchange = async () => {
       if (!input.files?.length) return;
-      await this._uploadPortraits(actor, Array.from(input.files));
+      await this._uploadPortraits(uuid, Array.from(input.files));
     };
 
     input.click();
   }
 
-  private async _uploadPortraits(actor: ActorConfig, files: File[]): Promise<void> {
-    const gameActor = await fromUuid(actor.uuid) as Actor;
+  private async _uploadPortraits(uuid: string, files: File[]): Promise<void> {
+    const gameActor = await fromUuid(uuid) as Actor;
     if (!gameActor) return;
 
     try {
-      let targetFolder = actor.portraitFolder;
+      let targetFolder = this.folders[uuid];
       if (!targetFolder) {
         const baseFolder = 'emotive-hud-portraits';
         const actorFolder = gameActor.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_actor';
@@ -508,7 +516,7 @@ export default class EmotiveActorSelector extends Application {
           }
         }
 
-        actor.portraitFolder = targetFolder;
+        this.folders[uuid] = targetFolder;
       }
 
       for (const file of files) {
@@ -516,7 +524,7 @@ export default class EmotiveActorSelector extends Application {
         console.log(`${CONSTANTS.DEBUG_PREFIX} Uploaded:`, file.name);
       }
 
-      await updateActorConfig(actor.uuid, targetFolder);
+      await updateActorConfig(uuid, targetFolder);
       ui.notifications?.info(`Successfully imported ${files.length} portraits`);
       this.render(false);
     } catch (error) {
@@ -616,20 +624,12 @@ export default class EmotiveActorSelector extends Application {
     if (!this.draggedItem) return;
     
     if (this.dropTargetIndex !== null) {
-      // Get all actor elements in their current DOM order
-      const items = Array.from(this.draggedItem.parentElement?.children || []);
-      
-      // Rebuild selectedActors array based on current DOM order
-      this.selectedActors = items.map(item => {
-        const uuid = item.getAttribute('data-uuid');
-        const existingConfig = this.selectedActors.find(actor => actor.uuid === uuid);
-        return {
-          uuid: uuid!,
-          portraitFolder: existingConfig?.portraitFolder || ""
-        };
-      });
-      
-      console.log('Updated selectedActors after drag:', this.selectedActors);
+      // rows keep their group; dom order becomes the order within it
+      const items = Array.from(this.draggedItem.parentElement?.children || []) as HTMLElement[];
+      this.groups = this.groups.map(group => ({
+        id: group.id,
+        actors: items.filter(item => item.dataset.groupId === group.id).map(item => item.dataset.uuid!),
+      }));
     }
     
     this.draggedItem.style.transform = "";
@@ -644,24 +644,10 @@ export default class EmotiveActorSelector extends Application {
     
     try {
       // one settings write; unchanged folders skip the rescan
-      await saveActorFolders(this.selectedActors);
+      await saveActorFolders(this.allUuids.map(uuid => ({ uuid, portraitFolder: this.folders[uuid] })));
 
-      // Update HUD state with current actors and their positions
-      const hudState = {
-        actors: this.selectedActors.map((actor, index) => ({
-          uuid: actor.uuid,
-          position: index
-        }))
-      };
-      
-      // Save the new state
-      await setHUDState(hudState);
-      
-      // Render the HUD with new changes
-      getModule().emotiveHUD.render();
-      
-      // Emit refresh to other clients only after all updates are complete
-      emitHUDRefresh();
+      // world setting onchange re-renders every client
+      await saveHUDState({ groups: this.groups });
 
       this.close();
       

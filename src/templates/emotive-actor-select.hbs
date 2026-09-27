@@ -5,7 +5,7 @@
       {{#if selectedActors.length}}
         <ul class="selected-actors-list">
           {{#each selectedActors}}
-            <li class="selected-actor{{#if this.expanded}} expanded{{/if}}" data-uuid="{{this.uuid}}">
+            <li class="selected-actor{{#if this.expanded}} expanded{{/if}}" data-uuid="{{this.uuid}}" data-group-id="{{this.groupId}}">
               <div class="actor-row" title="Click to show emotes">
                 <div class="drag-handle">
                   <i class="fas fa-grip-lines"></i>

@@ -1,6 +1,13 @@
 import { CONSTANTS } from './constants';
-import { ActorConfig, HUDState } from './types';
+import { ActorConfig, HUDPosition, HUDState, WindowState } from './types';
 import { getGame } from './utils';
+
+export const DEFAULT_WINDOW_STATE: WindowState = {
+  position: null,
+  minimized: false,
+  columns: 3,
+  width: 125,
+};
 
 export const registerSettings = function() {
   const gameInstance = getGame();
@@ -17,28 +24,34 @@ export const registerSettings = function() {
     }
   });
 
-  // Store current HUD state (which actors are visible and their order)
+  // groups and their actor order; read through state.ts
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudState', {
     name: 'Active HUD State',
     scope: 'world',
     config: false,
     type: Object,
-    default: { actors: [] } as HUDState,
+    default: { groups: [] } as HUDState,
     onChange: value => {
       Hooks.callAll(`${CONSTANTS.MODULE_ID}.hudStateChanged`, value);
     }
   });
 
-  // Store minimized state for each client
+  // group id -> position, minimize, layout and tint of that window
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'windowStates', {
+    name: 'HUD Window States',
+    scope: 'client',
+    config: false,
+    type: Object,
+    default: {} as Record<string, WindowState>,
+  });
+
+  // legacy single-window settings; only read by migrateWindowStates
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'isMinimized', {
     name: 'Emotive HUD Minimized State',
     scope: 'client',
     config: false,
     type: Boolean,
     default: false,
-    onChange: value => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, value);
-    }
   });
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorLimit', {
@@ -53,16 +66,12 @@ export const registerSettings = function() {
     }
   });
 
-  // columns and portrait width are set by dragging the hud corners
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'gridColumns', {
     name: "Grid Columns",
     scope: "client",
     config: false,
     type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 15 }),
-    default: 3,
-    onChange: value => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
-    }
+    default: DEFAULT_WINDOW_STATE.columns,
   });
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', {
@@ -70,10 +79,7 @@ export const registerSettings = function() {
     scope: "client",
     config: false,
     type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: CONSTANTS.MIN_PORTRAIT_WIDTH, max: CONSTANTS.MAX_PORTRAIT_WIDTH }),
-    default: 125,
-    onChange: value => {
-      Hooks.callAll(`${CONSTANTS.MODULE_ID}.layoutChanged`, value);
-    }
+    default: DEFAULT_WINDOW_STATE.width,
   });
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'portraitRatio', {
@@ -181,8 +187,6 @@ export const registerSettings = function() {
     default: {} as Record<string, boolean>,
   });
 
-
-  // Store user's preferred HUD position (distance from edges)
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'hudPosition', {
     name: 'HUD Position',
     scope: 'client',
@@ -289,31 +293,8 @@ export const setPortraitExcluded = async (uuid: string, path: string, excluded: 
   await saveActorConfigs(configs);
 };
 
-export const getHUDState = (): HUDState => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudState') as HUDState;
-};
-
-export const setHUDState = async (state: HUDState): Promise<void> => {
-  await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudState', state);
-};
-
-export const getIsMinimized = (): boolean => {
-  const gameInstance = getGame();
-  const value = gameInstance.settings.get(CONSTANTS.MODULE_ID, 'isMinimized');
-  return value as boolean;
-};
-
-export const setIsMinimized = async (isMinimized: boolean): Promise<void> => {
-  const gameInstance = getGame();
-  await gameInstance.settings.set(CONSTANTS.MODULE_ID, 'isMinimized', isMinimized);
-};
-
 export const getActorLimit = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'actorLimit') as number;
-};
-
-export const getGridColumns = (): number => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number;
 };
 
 export const getSelectorPreviewRows = (): number => {
@@ -332,22 +313,12 @@ export const getPortraitRatio = (): number => {
   return 1 / (getGame().settings.get(CONSTANTS.MODULE_ID, 'portraitRatio') as number);
 }
 
-export const getFloatingPortraitWidth = (): number => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number;
-}
-
 export const getHUDBackgroundColor = (): string => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor') as string;
 }
 
 export const getHUDBackgroundOpacity = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundOpacity') as number;
-}
-
-export const setHUDLayout =async (columns: number, width: number): Promise<void> => {
-  const settings = getGame().settings;
-  await settings.set(CONSTANTS.MODULE_ID, 'gridColumns', columns);
-  await settings.set(CONSTANTS.MODULE_ID, 'floatingPortraitWidth', width);
 }
 
 export const getActorPortraits = (uuid: string): string[] => {
@@ -368,13 +339,6 @@ export const getClickToFocus = (): boolean => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'clickToFocus') as boolean;
 };
 
-export const getHUDPosition = (): { left: number; top: number } | null => {
-  return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudPosition') as { left: number; top: number } | null;
-};
-
-export const setHUDPosition = async (position: { left: number; top: number } | null): Promise<void> => {
-  await getGame().settings.set(CONSTANTS.MODULE_ID, 'hudPosition', position);
-};
 export const getTooltipsEnabled = (): boolean => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'tooltipsEnabled') as boolean;
 };
@@ -385,4 +349,31 @@ export const getTooltipFieldToggles = (): Record<string, boolean> => {
 
 export const setTooltipFieldToggles = async (toggles: Record<string, boolean>): Promise<void> => {
   await getGame().settings.set(CONSTANTS.MODULE_ID, 'tooltipFields', toggles);
+};
+
+const getWindowStates = (): Record<string, WindowState> => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'windowStates') as Record<string, WindowState>;
+};
+
+// unknown group ids get default layout
+export const getWindowState = (groupId: string): WindowState => {
+  return { ...DEFAULT_WINDOW_STATE, ...getWindowStates()[groupId] };
+};
+
+export const patchWindowState = async (groupId: string, patch: Partial<WindowState>): Promise<void> => {
+  const states = foundry.utils.deepClone(getWindowStates());
+  states[groupId] = { ...getWindowState(groupId), ...patch };
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'windowStates', states);
+};
+
+// copies the pre-group single window layout onto the first group
+export const migrateWindowStates = async (groupId: string): Promise<void> => {
+  if (Object.keys(getWindowStates()).length) return;
+  const settings = getGame().settings;
+  await patchWindowState(groupId, {
+    position: settings.get(CONSTANTS.MODULE_ID, 'hudPosition') as HUDPosition | null,
+    minimized: settings.get(CONSTANTS.MODULE_ID, 'isMinimized') as boolean,
+    columns: settings.get(CONSTANTS.MODULE_ID, 'gridColumns') as number,
+    width: settings.get(CONSTANTS.MODULE_ID, 'floatingPortraitWidth') as number,
+  });
 };

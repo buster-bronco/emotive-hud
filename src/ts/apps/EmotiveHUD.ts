@@ -1,6 +1,6 @@
-import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, setHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay } from "../settings";
-import { HUDState, DockSide } from '../types';
+import { EmotiveHUDData, PortraitUpdateData, WindowState, DockSide } from "../types";
+import { getPortraitRatio, getSnapThreshold, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay, getWindowState, patchWindowState } from "../settings";
+import { getDisplayGroups, reorderGroup } from "../state";
 import CONSTANTS from "../constants";
 import { canManageHUD, getGame, getModule, swallowNextClick } from "../utils";
 import { buildActorTooltip } from "../tooltips";
@@ -9,6 +9,9 @@ import { setupPortraitDrag } from "../hud/portraitDrag";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2) {
+  readonly groupId: string;
+  // spawn order; staggers default positions
+  private cascadeIndex: number;
   private minimizeInProgress: boolean = false;
   private sidebarObserver: ResizeObserver | null = null;
   private hasBeenPositioned: boolean = false;
@@ -30,6 +33,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly DRAG_DEAD_ZONE = 4;
   private static readonly SNAP_RELEASE = 12;
   private static readonly RESIZE_HYSTERESIS = 12;
+  private static readonly CASCADE_OFFSET = 40;
 
   // must match .portrait-container padding/border/gap in emotive-hud.scss
   private static readonly CONTAINER_CHROME = 2 * 16 + 2 * 1;
@@ -37,7 +41,6 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private static readonly TOOLTIP_DELAY = 300;
 
   static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
-    id: "emotive-hud",
     classes: ['emotive-hud-widget'],
     tag: 'div',
     window: {
@@ -59,35 +62,19 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   };
 
-  constructor(options = {}) {
-    super(options);
+  // hudmanager owns the setting hooks and re-renders windows
+  constructor(groupId: string, cascadeIndex: number = 0) {
+    super({ id: `emotive-hud-${groupId}` });
+    this.groupId = groupId;
+    this.cascadeIndex = cascadeIndex;
+  }
 
-    console.log(`${CONSTANTS.DEBUG_PREFIX} EmotiveHUD constructor called`);
+  private get windowState(): WindowState {
+    return getWindowState(this.groupId);
+  }
 
-    // Hook into setting changes for reactive updates
-    Hooks.on(`${CONSTANTS.MODULE_ID}.minimizedStateChanged`, () => {
-      if (this.minimizeInProgress) {
-        this.handleMinimizeStateChange();
-      } else {
-        this.render();
-      }
-    });
-
-    Hooks.on(`${CONSTANTS.MODULE_ID}.layoutChanged`, () => {
-      this.render();
-    });
-
-    Hooks.on(`${CONSTANTS.MODULE_ID}.appearanceChanged`, () => {
-      this.render();
-    });
-
-    Hooks.on(`${CONSTANTS.MODULE_ID}.hudStateChanged`, () => {
-      this.render();
-    });
-
-    Hooks.on(`${CONSTANTS.MODULE_ID}.snapSettingsChanged`, () => {
-      // No need to update position immediately, snapping happens during drag
-    });
+  private savePosition(left: number, top: number): Promise<void> {
+    return patchWindowState(this.groupId, { position: { left, top } });
   }
 
   override _insertElement(element: HTMLElement): void {
@@ -113,7 +100,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // Only position the widget once, unless explicitly requested
     if (this.hasBeenPositioned) return;
 
-    const savedPosition = getHUDPosition();
+    const savedPosition = this.windowState.position;
     if (savedPosition) {
       this.applyPosition(savedPosition.left, savedPosition.top);
     } else {
@@ -132,9 +119,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const isCollapsed = !sidebarRect || sidebarRect.width < EmotiveHUD.SIDEBAR_MIN_WIDTH;
     const rightOffset = isCollapsed ? EmotiveHUD.POSITION_MARGIN : (sidebarRect?.width || 0) + EmotiveHUD.POSITION_MARGIN;
 
+    const cascade = this.cascadeIndex * EmotiveHUD.CASCADE_OFFSET;
     // @ts-ignore - TypeScript types for ApplicationV2 are inconsistent
-    const left = window.innerWidth - rightOffset - this.element.offsetWidth;
-    const top = EmotiveHUD.POSITION_MARGIN;
+    const left = window.innerWidth - rightOffset - this.element.offsetWidth - cascade;
+    const top = EmotiveHUD.POSITION_MARGIN + cascade;
 
     this.applyPosition(left, top);
 
@@ -178,7 +166,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     // If we have been positioned, ignore ApplicationV2's repositioning attempts
-    const savedPosition = getHUDPosition();
+    const savedPosition = this.windowState.position;
     if (savedPosition) {
       console.log('EmotiveHUD: Ignoring setPosition, using saved position:', savedPosition);
       this.applyPosition(savedPosition.left, savedPosition.top);
@@ -198,7 +186,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       return;
     }
 
-    const isMinimized = getIsMinimized();
+    const isMinimized = this.windowState.minimized;
     const before = this.getToggleRect();
     const hidden = { opacity: 0, transform: this.getCollapseTransform() };
     const shown = { opacity: 1, transform: 'none' };
@@ -311,7 +299,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   private getToggleIcon(): string {
     const opposite = { left: 'right', right: 'left', up: 'down' } as const;
     const direction = this.getToggleDirection();
-    return `fas fa-chevron-${getIsMinimized() ? opposite[direction] : direction}`;
+    return `fas fa-chevron-${this.windowState.minimized ? opposite[direction] : direction}`;
   }
 
   private getCollapseTransform(): string {
@@ -334,7 +322,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       this.dock = { side };
     }
 
-    const isMinimized = getIsMinimized();
+    const isMinimized = this.windowState.minimized;
 
     hud.dataset.dock = this.dock.side ?? 'none';
     toggleIcon.className = this.getToggleIcon();
@@ -345,7 +333,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   // only an expanded hud with portraits fades its bar
   private canFadeBar(): boolean {
     return !!this.element?.querySelector('.portrait')
-      && !getIsMinimized()
+      && !this.windowState.minimized
       && getBarFadeDelay() > 0;
   }
 
@@ -410,7 +398,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const top = before.top;
 
     this.applyPosition(left, top);
-    setHUDPosition({ left, top });
+    this.savePosition(left, top);
   }
 
   private getToggleRect(): DOMRect | null {
@@ -428,7 +416,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const top = rect.top + before.top - after.top;
 
     this.applyPosition(left, top);
-    setHUDPosition({ left, top });
+    this.savePosition(left, top);
   }
 
   // closing drops the app element; a reopen builds a fresh one
@@ -440,10 +428,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   override async _prepareContext(_options: any): Promise<EmotiveHUDData> {
     const actors = this.getActorsToShow();
-    const isMinimized = getIsMinimized();
-    const columns = getGridColumns();
+    const { minimized: isMinimized, columns, width: floatingPortraitWidth } = this.windowState;
     const emotivePortraitRatio = getPortraitRatio();
-    const floatingPortraitWidth = getFloatingPortraitWidth();
 
     return {
       canManage: canManageHUD(),
@@ -467,23 +453,12 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     };
   }
 
+  // group actors after the limit is applied
   private getActorsToShow(): Actor[] {
-    const gameInstance = getGame();
-    const hudState: HUDState = getHUDState();
-    const actorLimit = getActorLimit();
-
-    const hudActorMap = new Map(
-      hudState.actors
-        .slice(0, actorLimit)
-        .map(actor => [actor.uuid, actor.position])
-    );
-
-    const actors = Array.from(hudActorMap.keys())
-      .map(uuid => uuid.replace('Actor.', ''))
-      .map(normalizedUUID => gameInstance.actors?.get(normalizedUUID))
+    const group = getDisplayGroups().find(g => g.id === this.groupId);
+    return (group?.actors ?? [])
+      .map(uuid => getGame().actors?.get(uuid.replace('Actor.', '')))
       .filter(actor => actor) as Actor[];
-
-    return actors;
   }
 
   override async _onRender(_context: any, _options: any): Promise<void> {
@@ -553,12 +528,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   }
 
-  // hidden actors past the limit keep their slots at the end
   private async savePortraitOrder(actorIds: string[]): Promise<void> {
-    const uuids = actorIds.map(id => `Actor.${id}`);
-    const rest = getHUDState().actors.map(actor => actor.uuid).filter(uuid => !uuids.includes(uuid));
-    const actors = [...uuids, ...rest].map((uuid, position) => ({ uuid, position }));
-    await setHUDState({ actors });
+    await reorderGroup(this.groupId, actorIds.map(id => `Actor.${id}`));
   }
 
   // core tooltip manager handles leave/dismiss once activated on the portrait
@@ -756,7 +727,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       // Only reposition if we determined it's necessary
       if (shouldReposition) {
         this.applyPosition(newLeft, rect.top);
-        setHUDPosition({ left: newLeft, top: rect.top });
+        this.savePosition(newLeft, rect.top);
         this.applyDockState();
       }
     }
@@ -930,7 +901,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     let startPos = { x: 0, y: 0 };
     let startBox = { width: 0, height: 0 };
     let anchor = { right: 0, bottom: 0 };
-    let layout = { columns: Math.min(count, getGridColumns()), width: getFloatingPortraitWidth() };
+    const saved = this.windowState;
+    let layout = { columns: Math.min(count, saved.columns), width: saved.width };
 
     const onMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
@@ -997,8 +969,12 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       if (!this.element) return;
       const rect = this.element.getBoundingClientRect();
       this.applyDockState();
-      await setHUDPosition({ left: rect.left, top: rect.top });
-      await setHUDLayout(layout.columns, layout.width);
+      await patchWindowState(this.groupId, {
+        position: { left: rect.left, top: rect.top },
+        columns: layout.columns,
+        width: layout.width,
+      });
+      this.render();
     };
 
     handles.forEach(handle => handle.addEventListener('mousedown', onMouseDown));
@@ -1065,15 +1041,15 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     event.preventDefault();
-    getModule().emotiveActorSelector.render(true);
+    getModule().emotiveActorSelector.open();
   }
 
   private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
     event.preventDefault();
     if (this.isAnimating || this.minimizeInProgress) return;
     this.minimizeInProgress = true;
-    const currentState = getIsMinimized();
-    await setIsMinimized(!currentState);
+    await patchWindowState(this.groupId, { minimized: !this.windowState.minimized });
+    await this.handleMinimizeStateChange();
   }
 
   private getActorPortrait(actor: Actor): string {

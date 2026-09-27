@@ -1,10 +1,10 @@
-import EmotiveHUD from "./apps/EmotiveHUD";
+import HUDManager from "./hud/HUDManager";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 
 export interface EmotiveHudModule extends foundry.packages.Module {
   emotiveActorSelector: EmotiveActorSelector;
-  emotiveHUD: EmotiveHUD;
+  hud: HUDManager;
   emotivePortraitPicker: EmotivePortraitPicker;
   api: EmotiveHudApi;
 }
@@ -46,7 +46,6 @@ export interface PortraitData {
   actorId: string;
   imgSrc: string;
   name: string;
-  isSelected?: boolean;
   emotivePortraitRatio: number; // needs to be set here because of CSS witchcraft
 }
 
@@ -62,11 +61,31 @@ export interface ActorConfig {
   excludedPortraits?: string[];
 }
 
+// setting shapes are type aliases; foundry setting types reject interfaces
+// one hud window per group; array order is display order
+export type HUDGroup = {
+  id: string;
+  actors: string[];
+};
+
 export type HUDState = {
-  actors: {
-    uuid: string;
-    position: number; // Index/position on the Emotive HUD
-  }[];
+  groups: HUDGroup[];
+};
+
+// pre-group shape, migrated on read
+export interface LegacyHUDState {
+  actors: { uuid: string; position: number }[];
+}
+
+export type HUDPosition = { left: number; top: number };
+
+// client-side layout for one group window
+export type WindowState = {
+  position: HUDPosition | null;
+  minimized: boolean;
+  columns: number;
+  width: number;
+  color?: string;
 };
 
 // subset of the chat commander module api (game.chatCommands)

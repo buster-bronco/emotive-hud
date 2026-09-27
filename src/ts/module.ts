@@ -1,8 +1,9 @@
 import "../styles/style.scss";
-import EmotiveHUD from "./apps/EmotiveHUD";
 import { CONSTANTS } from "./constants";
 import { EmotiveHudModule } from "./types";
-import { registerSettings } from "./settings";
+import { migrateWindowStates, registerSettings } from "./settings";
+import { DEFAULT_GROUP_ID, getHUDState, migrateHUDState } from "./state";
+import HUDManager from "./hud/HUDManager";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
 import EmotivePortraitPicker from "./apps/EmotiovePortraitPicker";
 import { initializeSocketListeners } from "./sockets";
@@ -26,15 +27,17 @@ Hooks.once("init", () => {
   // Initialize all applications
   module.emotiveActorSelector = new EmotiveActorSelector();
   module.emotivePortraitPicker = new EmotivePortraitPicker();
-  module.emotiveHUD = new EmotiveHUD();
+  module.hud = new HUDManager();
 
   initializeSocketListeners();
   initializeChatCommands();
 });
 
-// EmotiveHUD hook
-Hooks.once("ready", () => {
-  module.emotiveHUD.render(true);
+// legacy single-window worlds become one group before the first render
+Hooks.once("ready", async () => {
+  await migrateHUDState();
+  await migrateWindowStates(getHUDState().groups[0]?.id ?? DEFAULT_GROUP_ID);
+  module.hud.start();
 });
 
 Hooks.once("setup", () => {

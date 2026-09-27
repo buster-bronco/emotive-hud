@@ -25,9 +25,6 @@ function handleSocketMessage(data: {
     case 'updatePortrait':
       handlePortraitUpdate(data.payload as PortraitUpdateData);
       break;
-    case 'refreshHUD':
-      getModule().emotiveHUD.render();
-      break;
     default:
       console.warn(`${CONSTANTS.DEBUG_PREFIX} Unknown socket action:`, data.action);
   }
@@ -35,7 +32,7 @@ function handleSocketMessage(data: {
 
 function handlePortraitUpdate(data: PortraitUpdateData): void {
   const module = getModule();
-  module.emotiveHUD.handlePortraitUpdate(data);
+  module.hud.handlePortraitUpdate(data);
 }
 
 /**
@@ -64,16 +61,3 @@ export function emitPortraitUpdated(actorId: string): void {
   handlePortraitUpdate(updateData);
 }
 
-export function emitHUDRefresh(): void {
-  const game = getGame();
-  
-  const socketData = {
-    action: 'refreshHUD',
-    payload: null
-  };
-  
-  console.log(`${CONSTANTS.DEBUG_PREFIX} Emitting HUD refresh`);
-  
-  // Emit the socket message
-  game.socket?.emit(CONSTANTS.SOCKET_NAME, socketData);
-}

@@ -1,5 +1,5 @@
 import { CONSTANTS } from "./constants";
-import { getHUDState } from "./settings";
+import { allHudActorUuids } from "./state";
 import type { ChatCommanderApi } from "./types";
 import { getGame } from "./utils";
 
@@ -96,11 +96,10 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
   if (!speaker) {
     const controlled = canvas?.tokens?.controlled[0];
     if (controlled?.actor && controlled.actor.id) {  // Ensure actor and id exist
-      const hudState = getHUDState();
       const actorUuid = `Actor.${controlled.actor.id}`;
 
       // Check if the selected token's actor is on the HUD
-      const isOnHud = hudState.actors.some(a => a.uuid === actorUuid);
+      const isOnHud = allHudActorUuids().includes(actorUuid);
 
       if (isOnHud && controlled.actor.testUserPermission(game.user!, "OWNER")) {
         speaker = game.actors!.get(controlled.actor.id) ?? undefined;

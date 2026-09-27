@@ -1,12 +1,11 @@
-import type { ActorConfig, ChatCommanderApi, EmotiveHudApi, EmotiveHudModule, HUDState } from "./types";
-
-type HUDPosition = { left: number; top: number } | null;
+import type { ActorConfig, ChatCommanderApi, EmotiveHudApi, EmotiveHudModule, HUDPosition, HUDState, WindowState } from "./types";
 
 declare global {
   // setting value types keyed by "namespace.key"
   interface SettingConfig {
     "emotive-hud.actorConfigs": Record<string, ActorConfig>;
     "emotive-hud.hudState": HUDState;
+    "emotive-hud.windowStates": Record<string, WindowState>;
     "emotive-hud.isMinimized": boolean;
     "emotive-hud.actorLimit": number;
     "emotive-hud.gridColumns": number;
@@ -16,7 +15,7 @@ declare global {
     "emotive-hud.hudBackgroundOpacity": number;
     "emotive-hud.snapThreshold": number;
     "emotive-hud.barFadeDelay": number;
-    "emotive-hud.hudPosition": HUDPosition;
+    "emotive-hud.hudPosition": HUDPosition | null;
     "emotive-hud.selectorPreviewRows": number;
     "emotive-hud.confirmFolderSync": boolean;
     "emotive-hud.clickToFocus": boolean;
@@ -40,7 +39,7 @@ declare global {
 
   // extra props attached to game.modules.get("emotive-hud")
   interface ModuleConfig {
-    "emotive-hud": Pick<EmotiveHudModule, "emotiveActorSelector" | "emotiveHUD" | "emotivePortraitPicker" | "api">;
+    "emotive-hud": Pick<EmotiveHudModule, "emotiveActorSelector" | "hud" | "emotivePortraitPicker" | "api">;
   }
 
   interface RequiredModules {
@@ -54,7 +53,6 @@ declare module "@league-of-foundry-developers/foundry-vtt-types/configuration" {
     interface HookConfig {
       "emotive-hud.configsChanged": (value: Record<string, ActorConfig>) => void;
       "emotive-hud.hudStateChanged": (value: HUDState) => void;
-      "emotive-hud.minimizedStateChanged": (value: boolean) => void;
       "emotive-hud.actorLimitChanged": (value: number) => void;
       "emotive-hud.layoutChanged": (value: number) => void;
       "emotive-hud.appearanceChanged": () => void;
