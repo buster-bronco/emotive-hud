@@ -1,11 +1,15 @@
 .emotive-picker-popup {
-  .window-header {
-    display: none;
-  }
-  
-  .window-content {
-    padding: 0;
-    background: rgba(30, 30, 30, 0.95);
+  position: fixed;
+  z-index: 110;
+  padding: 0;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: opacity 100ms ease;
+
+  &.closing {
+    opacity: 0;
   }
 }
 

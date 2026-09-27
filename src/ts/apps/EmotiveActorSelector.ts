@@ -3,45 +3,49 @@ import { getActorConfigs, getActorLimit, getConfirmFolderSync, getSelectorPrevie
 import { allHudActorUuids, DEFAULT_GROUP_ID, getHUDState, saveHUDState } from "../state";
 import { HUDGroup } from '../types';
 import { emitPortraitUpdated } from "../sockets";
-import { getGame } from "../utils";
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
-export default class EmotiveActorSelector extends Application {
+export default class EmotiveActorSelector extends HandlebarsApplicationMixin(ApplicationV2) {
   // unsaved group draft; written to hudstate on apply
   private groups: HUDGroup[] = [];
   // uuid -> portrait folder draft
   private folders: Record<string, string> = {};
-  protected override _dragDrop: DragDrop[] = [];
+  private dragDrop: foundry.applications.ux.DragDrop;
   private draggedItem: HTMLElement | null = null;
   // pointer distance from the dragged row's middle
   private grabOffset: number = 0;
   // uuids whose emote strip is open, kept across re-renders
   private expanded = new Set<string>();
 
+  private readonly onDocumentMouseMove = (event: MouseEvent) => this._onDocumentMouseMove(event);
+  private readonly onDocumentMouseUp = () => this._onDocumentMouseUp();
+
+  static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
+    id: "expressive-actor-select",
+    window: {
+      title: "EMOTIVEHUD.emotive-actor-selector",
+    },
+    position: { width: 720, height: 720 },
+  };
+
+  static override PARTS = {
+    main: { template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-actor-select.hbs` },
+  };
+
   constructor(options = {}) {
     super(options);
-
-    // load up settings data
     this._loadFromSettings();
 
-    this._dragDrop = [
-      new DragDrop({
-        dragSelector: ".actor-item",
-        dropSelector: ".drag-area",
-        permissions: {
-          dragstart: (selector: DragDrop.DragSelector) => this._canDragStart(selector),
-          drop: (selector: DragDrop.DragSelector) => this._canDragDrop(selector)
-        },
-        callbacks: {
-          dragstart: this._onDragStart.bind(this),
-          drop: this._onDragDrop.bind(this)
-        }
-      })
-    ];
+    this.dragDrop = new foundry.applications.ux.DragDrop.implementation({
+      dropSelector: ".drag-area",
+      callbacks: { drop: this._onDragDrop.bind(this) }
+    });
   }
 
-  private async _loadFromSettings(): Promise<void> {
+  private _loadFromSettings(): void {
     const configs = getActorConfigs();
     this.groups = getHUDState().groups;
     this.folders = Object.fromEntries(
@@ -52,40 +56,14 @@ export default class EmotiveActorSelector extends Application {
   // fresh draft each open; the hud can reorder while closed
   open(): void {
     if (!this.rendered) this._loadFromSettings();
-    this.render(true);
+    this.render({ force: true });
   }
 
   private get allUuids(): string[] {
     return allHudActorUuids({ groups: this.groups });
   }
 
-  protected override _canDragStart(selector: DragDrop.DragSelector): boolean {
-    if (!selector) return false;
-    return true;
-  }
-  
-  protected override _canDragDrop(selector: DragDrop.DragSelector): boolean {
-    if (!selector) return false;
-    return true;
-  }
-
-  protected override _onDragStart(event: DragEvent): void {
-    if (!event.dataTransfer) return;
-    
-    const target = event.currentTarget as HTMLElement;
-    if (!target?.dataset?.actorId) return;
-
-    const actorId = target.dataset.actorId;
-    
-    console.log(CONSTANTS.DEBUG_PREFIX, "Actor selected for drag:", actorId);
-    
-    event.dataTransfer.setData("text/plain", JSON.stringify({
-      type: "Actor",
-      id: actorId
-    }));
-  }
-
-  protected async _onDragDrop(event: DragEvent): Promise<void> {
+  private async _onDragDrop(event: DragEvent): Promise<void> {
     if (!event.dataTransfer) return;
 
     if (event.dataTransfer.files.length) {
@@ -161,14 +139,14 @@ export default class EmotiveActorSelector extends Application {
       this.folders[uuid] = configs[uuid]?.portraitFolder || "";
     }
 
-    this.render(false);
+    this.render();
     return toAdd.length;
   }
 
   // os file drops carry files but no text payload
   private _onDropFiles(event: DragEvent, files: File[]): void {
     const row = (event.target as HTMLElement).closest<HTMLElement>(".selected-actor");
-    this.element.find(".file-drop-target").removeClass("file-drop-target");
+    this.element.querySelectorAll(".file-drop-target").forEach(el => el.classList.remove("file-drop-target"));
 
     const uuid = row?.dataset.uuid;
     if (!uuid || !this.allUuids.includes(uuid)) {
@@ -185,19 +163,19 @@ export default class EmotiveActorSelector extends Application {
     this._uploadPortraits(uuid, images);
   }
 
-  private async _onSelectPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
+  private async _onSelectPortraitFolder(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid') as string;
+    const uuid = target.dataset.uuid ?? '';
     if (!this.allUuids.includes(uuid)) return;
 
-    const fp = new FilePicker({
+    const fp = new foundry.applications.apps.FilePicker.implementation({
       type: "folder",
       allowUpload: true,
       displayMode: "images",
       callback: async (path: string) => {
         try {
           this.folders[uuid] = path;
-          this.render(true);
+          this.render();
         } catch (error) {
           console.error(CONSTANTS.DEBUG_PREFIX, 'Error setting portrait folder:', error);
           ui.notifications?.error("Failed to set portrait folder");
@@ -207,25 +185,24 @@ export default class EmotiveActorSelector extends Application {
     fp.browse(this.folders[uuid] || "");
   }
 
-  private async _onClickActorPortrait(event: JQuery.ClickEvent): Promise<void> {
+  private async _onClickActorPortrait(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid');
-    const actor = await fromUuid(uuid) as Actor;
+    const actor = await fromUuid(target.dataset.uuid ?? '') as Actor;
     if (!actor) return;
 
     actor.sheet?.render(true);
   }
 
-  private async _onRemoveActor(event: JQuery.ClickEvent): Promise<void> {
+  private async _onRemoveActor(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid');
+    const uuid = target.dataset.uuid;
     this.groups.forEach(group => group.actors = group.actors.filter(a => a !== uuid));
-    delete this.folders[uuid];
-    this.render(false);
+    if (uuid) delete this.folders[uuid];
+    this.render();
   }
 
   // dialogv2.confirm resolves true on yes, false on no, null on close
-  private async _onClearActors(event: JQuery.ClickEvent): Promise<void> {
+  private async _onClearActors(event: MouseEvent): Promise<void> {
     event.preventDefault();
     if (!this.allUuids.length) return;
 
@@ -239,29 +216,16 @@ export default class EmotiveActorSelector extends Application {
     this.groups = [];
     this.folders = {};
     this.expanded.clear();
-    this.render(false);
+    this.render();
   }
 
-  override get title(): string {
-    return getGame().i18n!.localize("EMOTIVEHUD.emotive-actor-selector");
-  }
-
-  static override get defaultOptions(): Application.Options {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "expressive-actor-select",
-      template: `modules/${CONSTANTS.MODULE_ID}/templates/emotive-actor-select.hbs`,
-      width: 720,
-      height: 720,
-    }) as Application.Options;
-  }
-
-  private async _onResetChanges(event: JQuery.ClickEvent): Promise<void> {
+  private _onResetChanges(event: MouseEvent): void {
     event.preventDefault();
-    await this._loadFromSettings();
-    this.render(false);
+    this._loadFromSettings();
+    this.render();
   }
 
-  override async getData() {
+  override async _prepareContext(_options: any): Promise<any> {
     const configs = getActorConfigs();
 
     const enrichActor = async (uuid: string) => {
@@ -298,25 +262,24 @@ export default class EmotiveActorSelector extends Application {
     };
   }
 
-  private _onToggleEmoteStrip(event: JQuery.ClickEvent): void {
+  private _onToggleEmoteStrip(event: MouseEvent, target: HTMLElement): void {
     // clicks on the row's own controls keep their normal behavior
-    if ($(event.target).closest("button, .drag-handle, .actor-portrait, .portrait-path").length) return;
+    if ((event.target as HTMLElement).closest("button, .drag-handle, .actor-portrait, .portrait-path")) return;
 
-    const item = $(event.currentTarget).closest(".selected-actor");
-    const uuid = item.data("uuid") as string;
-    if (!uuid) return;
+    const item = target.closest<HTMLElement>(".selected-actor");
+    const uuid = item?.dataset.uuid;
+    if (!item || !uuid) return;
 
-    const isOpen = item.toggleClass("expanded").hasClass("expanded");
+    const isOpen = item.classList.toggle("expanded");
     if (isOpen) this.expanded.add(uuid);
     else this.expanded.delete(uuid);
   }
 
-  private async _onSelectEmote(event: JQuery.ClickEvent): Promise<void> {
+  private async _onSelectEmote(event: MouseEvent, itemEl: HTMLElement): Promise<void> {
     event.preventDefault();
-    const itemEl = $(event.currentTarget);
-    if (itemEl.hasClass("excluded")) return;
-    const path = itemEl.data("path") as string;
-    const uuid = itemEl.closest(".selected-actor").data("uuid") as string;
+    if (itemEl.classList.contains("excluded")) return;
+    const path = itemEl.dataset.path;
+    const uuid = itemEl.closest<HTMLElement>(".selected-actor")?.dataset.uuid;
     if (!path || !uuid) return;
 
     try {
@@ -326,8 +289,7 @@ export default class EmotiveActorSelector extends Application {
       await actor.setFlag(CONSTANTS.MODULE_ID, 'currentPortrait', path);
       emitPortraitUpdated(actor.id);
 
-      itemEl.siblings(".emote-item").removeClass("current");
-      itemEl.addClass("current");
+      itemEl.parentElement?.querySelectorAll(".emote-item").forEach(el => el.classList.toggle("current", el === itemEl));
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
       ui.notifications?.error("Failed to update portrait");
@@ -363,9 +325,9 @@ export default class EmotiveActorSelector extends Application {
     return result === "proceed" || result === "proceed-hide";
   }
 
-  private async _onSyncPortraitFolder(event: JQuery.ClickEvent): Promise<void> {
+  private async _onSyncPortraitFolder(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid') as string;
+    const uuid = target.dataset.uuid ?? '';
     const portraitFolder = this.folders[uuid];
     if (!portraitFolder) {
       ui.notifications?.warn("Select a portrait folder before syncing");
@@ -377,41 +339,40 @@ export default class EmotiveActorSelector extends Application {
     try {
       await syncActorConfigs([{ uuid, portraitFolder }]);
       ui.notifications?.info("Portrait folder synced");
-      this.render(false);
+      this.render();
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error syncing portrait folder:', error);
       ui.notifications?.error("Failed to sync portrait folder");
     }
   }
 
-  private async _onToggleExcluded(event: JQuery.ClickEvent): Promise<void> {
+  private async _onToggleExcluded(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    const itemEl = $(event.currentTarget).closest(".emote-item");
-    const path = itemEl.data("path") as string;
-    const uuid = itemEl.closest(".selected-actor").data("uuid") as string;
-    if (!path || !uuid) return;
+    const itemEl = target.closest<HTMLElement>(".emote-item");
+    const path = itemEl?.dataset.path;
+    const uuid = itemEl?.closest<HTMLElement>(".selected-actor")?.dataset.uuid;
+    if (!itemEl || !path || !uuid) return;
 
-    const exclude = !itemEl.hasClass("excluded");
+    const exclude = !itemEl.classList.contains("excluded");
 
     try {
       await setPortraitExcluded(uuid, path, exclude);
 
-      itemEl.toggleClass("excluded", exclude);
-      itemEl.find(".exclude-portrait")
-        .attr("title", exclude ? "Restore portrait" : "Exclude portrait")
-        .find("i")
-        .toggleClass("fa-xmark", !exclude)
-        .toggleClass("fa-rotate-left", exclude);
+      itemEl.classList.toggle("excluded", exclude);
+      const button = itemEl.querySelector<HTMLElement>(".exclude-portrait");
+      button?.setAttribute("title", exclude ? "Restore portrait" : "Exclude portrait");
+      button?.querySelector("i")?.classList.toggle("fa-xmark", !exclude);
+      button?.querySelector("i")?.classList.toggle("fa-rotate-left", exclude);
 
       // an excluded current emote falls back to the actor's default image
-      if (exclude && itemEl.hasClass("current")) {
+      if (exclude && itemEl.classList.contains("current")) {
         const actor = await fromUuid(uuid) as Actor;
         if (actor?.id) {
           await actor.unsetFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
           emitPortraitUpdated(actor.id);
         }
-        itemEl.removeClass("current");
+        itemEl.classList.remove("current");
       }
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error excluding portrait:', error);
@@ -419,77 +380,49 @@ export default class EmotiveActorSelector extends Application {
     }
   }
 
-  override activateListeners(html: JQuery<HTMLElement>): void {
-    super.activateListeners(html);
-    
-    html.find(".apply-button")
-      .on("click", this._onClickApplyButton.bind(this));
-        
-    html.find(".remove-actor")
-      .on("click", this._onRemoveActor.bind(this));
+  override async _onRender(context: any, options: any): Promise<void> {
+    await super._onRender(context, options);
+    const on = (selector: string, type: string, handler: (event: any, target: HTMLElement) => unknown) => {
+      this.element.querySelectorAll<HTMLElement>(selector).forEach(el => el.addEventListener(type, event => handler(event, el)));
+    };
 
-    html.find(".clear-actors")
-      .on("click", this._onClearActors.bind(this));
+    on(".apply-button", "click", event => this._onClickApplyButton(event));
+    on(".remove-actor", "click", (event, el) => this._onRemoveActor(event, el));
+    on(".clear-actors", "click", event => this._onClearActors(event));
+    on(".new-group", "click", event => this._onNewGroup(event));
+    on(".remove-group", "click", (event, el) => this._onRemoveGroup(event, el));
+    on(".reset-changes", "click", event => this._onResetChanges(event));
+    on(".select-portrait-folder", "click", (event, el) => this._onSelectPortraitFolder(event, el));
+    on(".import-portraits", "click", (event, el) => this._onImportPortraits(event, el));
+    on(".sync-portrait-folder", "click", (event, el) => this._onSyncPortraitFolder(event, el));
+    on(".actor-portrait.clickable", "click", (event, el) => this._onClickActorPortrait(event, el));
+    on(".selected-actor .actor-row", "click", (event, el) => this._onToggleEmoteStrip(event, el));
+    on(".emote-strip .emote-item", "click", (event, el) => this._onSelectEmote(event, el));
+    on(".emote-strip .exclude-portrait", "click", (event, el) => this._onToggleExcluded(event, el));
+    on(".selected-actor", "dragover", (event, el) => this._onRowFileDragOver(event, el));
+    on(".selected-actor", "dragleave", (event, el) => this._onRowFileDragLeave(event, el));
+    on(".drag-handle", "mousedown", (event, el) => this._onDragHandleMouseDown(event, el));
 
-    html.find(".new-group")
-      .on("click", this._onNewGroup.bind(this));
-
-    html.find(".remove-group")
-      .on("click", this._onRemoveGroup.bind(this));
-
-    html.find(".reset-changes")
-      .on("click", this._onResetChanges.bind(this));
-
-    html.find(".select-portrait-folder")
-      .on("click", this._onSelectPortraitFolder.bind(this));
-
-    html.find
-      (".import-portraits").on("click", this._onImportPortraits.bind(this));
-
-    html.find(".sync-portrait-folder")
-      .on("click", this._onSyncPortraitFolder.bind(this));
-      
-    html.find(".actor-portrait.clickable")
-      .on("click", this._onClickActorPortrait.bind(this));
-
-    html.find(".selected-actor .actor-row")
-      .on("click", this._onToggleEmoteStrip.bind(this));
-
-    html.find(".emote-strip .emote-item")
-      .on("click", this._onSelectEmote.bind(this));
-
-    html.find(".emote-strip .exclude-portrait")
-      .on("click", this._onToggleExcluded.bind(this));
-
-    html.find(".selected-actor")
-      .on("dragover", this._onRowFileDragOver.bind(this))
-      .on("dragleave", this._onRowFileDragLeave.bind(this));
-
-    const dragHandles = html.find(".drag-handle");
-    dragHandles.on("mousedown", this._onDragHandleMouseDown.bind(this));
-    
-    // namespaced so each render replaces the old document handlers
-    $(document)
-      .off("mousemove.actor-selector")
-      .off("mouseup.actor-selector")
-      .on("mousemove.actor-selector", (e) => this._onDocumentMouseMove(e as JQuery.MouseMoveEvent))
-      .on("mouseup.actor-selector", (e) => this._onDocumentMouseUp(e as JQuery.MouseUpEvent));
-
-    this._dragDrop.forEach(dd => dd.bind(html[0]));
+    this.dragDrop.bind(this.element);
   }
 
-  override close(options?: Application.CloseOptions): Promise<void> {
-    // Clean up document-level event listeners
-    $(document)
-      .off("mousemove.actor-selector")
-      .off("mouseup.actor-selector");
-    
-    return super.close(options);
+  // document listeners live only while the window is open
+  override async _onFirstRender(context: any, options: any): Promise<void> {
+    await super._onFirstRender(context, options);
+    document.addEventListener("mousemove", this.onDocumentMouseMove);
+    document.addEventListener("mouseup", this.onDocumentMouseUp);
   }
 
-  private async _onImportPortraits(event: JQuery.ClickEvent): Promise<void> {
+  override _onClose(options: any): void {
+    super._onClose(options);
+    document.removeEventListener("mousemove", this.onDocumentMouseMove);
+    document.removeEventListener("mouseup", this.onDocumentMouseUp);
+    this.draggedItem = null;
+  }
+
+  private async _onImportPortraits(event: MouseEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const uuid = $(event.currentTarget).data('uuid') as string;
+    const uuid = target.dataset.uuid ?? '';
     if (!this.allUuids.includes(uuid)) return;
 
     // hidden file input opens the os file dialog
@@ -520,9 +453,9 @@ export default class EmotiveActorSelector extends Application {
         // createdirectory throws when the folder already exists
         for (const folder of [baseFolder, targetFolder]) {
           try {
-            await FilePicker.createDirectory('data', folder);
-          } catch (err) {
-            console.log(CONSTANTS.DEBUG_PREFIX, err);
+            await foundry.applications.apps.FilePicker.implementation.createDirectory('data', folder);
+          } catch {
+            // already exists
           }
         }
 
@@ -530,13 +463,12 @@ export default class EmotiveActorSelector extends Application {
       }
 
       for (const file of files) {
-        await FilePicker.upload('data', targetFolder, file);
-        console.log(`${CONSTANTS.DEBUG_PREFIX} Uploaded:`, file.name);
+        await foundry.applications.apps.FilePicker.implementation.upload('data', targetFolder, file);
       }
 
       await updateActorConfig(uuid, targetFolder);
       ui.notifications?.info(`Successfully imported ${files.length} portraits`);
-      this.render(false);
+      this.render();
     } catch (error) {
       console.error(`${CONSTANTS.DEBUG_PREFIX} Error uploading files:`, error);
       ui.notifications?.error("Failed to upload one or more portraits");
@@ -549,22 +481,21 @@ export default class EmotiveActorSelector extends Application {
   }
 
   // browsers only allow a drop when dragover calls preventdefault
-  private _onRowFileDragOver(event: JQuery.DragOverEvent): void {
-    const types = event.originalEvent?.dataTransfer?.types;
+  private _onRowFileDragOver(event: DragEvent, row: HTMLElement): void {
+    const types = event.dataTransfer?.types;
     if (!types || !Array.from(types).includes("Files")) return;
     event.preventDefault();
-    $(event.currentTarget).addClass("file-drop-target");
+    row.classList.add("file-drop-target");
   }
 
-  private _onRowFileDragLeave(event: JQuery.DragLeaveEvent): void {
-    const row = event.currentTarget as HTMLElement;
-    const related = (event.originalEvent as DragEvent | undefined)?.relatedTarget as Node | null;
+  private _onRowFileDragLeave(event: DragEvent, row: HTMLElement): void {
+    const related = event.relatedTarget as Node | null;
     if (related && row.contains(related)) return;
     row.classList.remove("file-drop-target");
   }
 
-  private _onDragHandleMouseDown(event: JQuery.MouseDownEvent): void {
-    const item = (event.currentTarget as HTMLElement).closest<HTMLElement>(".selected-actor");
+  private _onDragHandleMouseDown(event: MouseEvent, handle: HTMLElement): void {
+    const item = handle.closest<HTMLElement>(".selected-actor");
     if (!item) return;
 
     const rect = item.getBoundingClientRect();
@@ -577,7 +508,7 @@ export default class EmotiveActorSelector extends Application {
 
   // group list whose folder spans the pointer's height
   private _groupListAt(y: number): HTMLElement | null {
-    const sections = Array.from(this.element[0].querySelectorAll<HTMLElement>(".actor-group"));
+    const sections = Array.from(this.element.querySelectorAll<HTMLElement>(".actor-group"));
     const section = sections.find(s => {
       const rect = s.getBoundingClientRect();
       return y >= rect.top && y <= rect.bottom;
@@ -586,7 +517,7 @@ export default class EmotiveActorSelector extends Application {
   }
 
   // rows slot in before the first sibling whose middle sits below the dragged row
-  private _onDocumentMouseMove(event: JQuery.MouseMoveEvent): void {
+  private _onDocumentMouseMove(event: MouseEvent): void {
     const item = this.draggedItem;
     if (!item) return;
 
@@ -614,38 +545,38 @@ export default class EmotiveActorSelector extends Application {
   }
 
   // dom order is the new draft; folders in order, rows within each
-  private _onDocumentMouseUp(_event: JQuery.MouseUpEvent): void {
+  private _onDocumentMouseUp(): void {
     if (!this.draggedItem) return;
 
     this.draggedItem.style.transform = "";
     this.draggedItem.classList.remove("dragging");
     this.draggedItem = null;
 
-    const lists = Array.from(this.element[0].querySelectorAll<HTMLElement>(".group-actors"));
+    const lists = Array.from(this.element.querySelectorAll<HTMLElement>(".group-actors"));
     this.groups = lists.map(list => ({
       id: list.dataset.groupId ?? "",
       actors: Array.from(list.querySelectorAll<HTMLElement>(":scope > .selected-actor")).map(row => row.dataset.uuid!),
     }));
-    this.render(false);
+    this.render();
   }
 
-  private _onNewGroup(event: JQuery.ClickEvent): void {
+  private _onNewGroup(event: MouseEvent): void {
     event.preventDefault();
     this.groups.push({ id: foundry.utils.randomID(), actors: [] });
-    this.render(false);
+    this.render();
   }
 
   // actors fold into the group above, or below for the first one
-  private _onRemoveGroup(event: JQuery.ClickEvent): void {
+  private _onRemoveGroup(event: MouseEvent, target: HTMLElement): void {
     event.preventDefault();
-    const index = this.groups.findIndex(group => group.id === $(event.currentTarget).data("groupId"));
+    const index = this.groups.findIndex(group => group.id === target.dataset.groupId);
     if (index < 0 || this.groups.length < 2) return;
 
     const [removed] = this.groups.splice(index, 1);
     const into = this.groups[Math.max(0, index - 1)];
     if (index === 0) into.actors.unshift(...removed.actors);
     else into.actors.push(...removed.actors);
-    this.render(false);
+    this.render();
   }
 
   private async _onClickApplyButton(event: Event): Promise<void> {

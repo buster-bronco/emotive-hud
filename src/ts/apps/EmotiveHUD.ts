@@ -160,11 +160,8 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   // Override setPosition to prevent ApplicationV2 from repositioning our widget
   override setPosition(position: any = {}): void {
-    console.log('EmotiveHUD: setPosition called with:', position);
-
     // If we haven't been positioned yet, allow normal positioning
     if (!this.hasBeenPositioned) {
-      console.log('EmotiveHUD: Not yet positioned, allowing setPosition');
       // @ts-ignore - Call parent method
       return super.setPosition(position);
     }
@@ -172,12 +169,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // If we have been positioned, ignore ApplicationV2's repositioning attempts
     const savedPosition = this.windowState.position;
     if (savedPosition) {
-      console.log('EmotiveHUD: Ignoring setPosition, using saved position:', savedPosition);
       this.applyPosition(savedPosition.left, savedPosition.top);
       return;
     }
 
-    console.log('EmotiveHUD: No saved position, allowing setPosition');
     // @ts-ignore - Call parent method
     return super.setPosition(position);
   }
@@ -478,14 +473,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     this.setupBarFade();
     this.applyDockState();
 
-    // Set up event listeners using jQuery for compatibility
-    // TODO: Remove this after we convert everything else to V2
-    // @ts-ignore - TypeScript types for ApplicationV2 are inconsistent
-    const html = $(this.element);
-
-    html.find('.open-selector').on('click', this._onOpenSelector.bind(this));
-    html.find('.toggle-visibility').on('click', this._onToggleVisibility.bind(this));
-    html.find('.toggle-lock').on('click', () => getModule().hud.toggleLock());
+    const html = this.element;
+    html.querySelector('.open-selector')?.addEventListener('click', event => this._onOpenSelector(event as MouseEvent));
+    html.querySelector('.toggle-visibility')?.addEventListener('click', event => this._onToggleVisibility(event as MouseEvent));
+    html.querySelector('.toggle-lock')?.addEventListener('click', () => getModule().hud.toggleLock());
     this.setupTintPicker();
 
     // Position after a short delay to ensure ApplicationV2 has finished its positioning logic
@@ -494,39 +485,39 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       this.applyDockState();
     }, 10);
 
-    const portraits = html.find('.portrait');
+    html.querySelectorAll<HTMLElement>('.portrait').forEach(portrait => {
+      portrait.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._onPortraitClick(portrait);
+      });
 
-    portraits.on('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this._onPortraitClick(event);
+      portrait.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._onPortraitRightClick(portrait);
+      });
+
+      portrait.addEventListener('dblclick', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._onOpenPortraitSheet(portrait);
+      });
+
+      // button 1 is middle click; mousedown default starts autoscroll
+      portrait.addEventListener('mousedown', event => {
+        if (event.button === 1) event.preventDefault();
+      });
+
+      portrait.addEventListener('auxclick', event => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this._onOpenPortraitSheet(portrait);
+      });
+
+      this.setupPortraitTooltip(portrait);
     });
-
-    portraits.on('contextmenu', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this._onPortraitRightClick(event);
-    });
-
-    portraits.on('dblclick', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this._onOpenPortraitSheet(event);
-    });
-
-    // button 1 is middle click; mousedown default starts autoscroll
-    portraits.on('mousedown', (event) => {
-      if (event.button === 1) event.preventDefault();
-    });
-
-    portraits.on('auxclick', (event) => {
-      if (event.button !== 1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      this._onOpenPortraitSheet(event);
-    });
-
-    portraits.each((_, portrait) => this.setupPortraitTooltip(portrait));
 
     const container = this.element?.querySelector<HTMLElement>('.portrait-container');
     if (this.element && container) {
@@ -1013,8 +1004,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     handles.forEach(handle => handle.addEventListener('mousedown', onMouseDown));
   }
 
-  private async _onPortraitRightClick(event: JQuery.ContextMenuEvent): Promise<void> {
-    const portraitElement = event.currentTarget as HTMLElement;
+  private async _onPortraitRightClick(portraitElement: HTMLElement): Promise<void> {
     const actorId = portraitElement.dataset.actorId;
 
     if (!actorId) return;
@@ -1026,10 +1016,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     getModule().emotivePortraitPicker.showForActor(actorId, portraitElement);
   }
 
-  private _onPortraitClick(event: JQuery.ClickEvent): void {
+  private _onPortraitClick(portrait: HTMLElement): void {
     if (!getClickToFocus()) return;
 
-    const actorId = (event.currentTarget as HTMLElement).dataset.actorId;
+    const actorId = portrait.dataset.actorId;
     if (!actorId) return;
 
     const actor = getGame().actors?.get(actorId);
@@ -1043,7 +1033,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     // control() selects without targeting; returns false for unowned tokens
     if (!token.control({ releaseOthers: true })) return;
     canvas.animatePan({ x: token.center.x, y: token.center.y });
-    this.playFlash(event.currentTarget as HTMLElement, 'focus-flash');
+    this.playFlash(portrait, 'focus-flash');
   }
 
   private playFlash(element: HTMLElement, className: string): void {
@@ -1054,8 +1044,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     element.addEventListener('animationend', () => element.classList.remove(className), { once: true });
   }
 
-  private async _onOpenPortraitSheet(event: JQuery.TriggeredEvent): Promise<void> {
-    const portraitElement = event.currentTarget as HTMLElement;
+  private async _onOpenPortraitSheet(portraitElement: HTMLElement): Promise<void> {
     const actorId = portraitElement.dataset.actorId;
 
     if (!actorId) return;
@@ -1067,7 +1056,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     actor.sheet?.render(true);
   }
 
-  private _onOpenSelector(event: JQuery.ClickEvent): void {
+  private _onOpenSelector(event: MouseEvent): void {
     if (!canManageHUD()) {
       ui.notifications?.error("Only GM Can Open Selector");
       return;
@@ -1077,7 +1066,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     getModule().emotiveActorSelector.open();
   }
 
-  private async _onToggleVisibility(event: JQuery.ClickEvent): Promise<void> {
+  private async _onToggleVisibility(event: MouseEvent): Promise<void> {
     event.preventDefault();
     if (this.isAnimating || this.minimizeInProgress) return;
     this.minimizeInProgress = true;

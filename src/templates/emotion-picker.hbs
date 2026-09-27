@@ -1,12 +1,12 @@
 <div class="emotion-picker-menu" data-actor-id="{{actorId}}">
   <div class="emotion-grid">
     {{#each portraits}}
-    <div class="emotion-item" data-path="{{this.path}}">
+    <div class="emotion-item" data-action="selectEmotion" data-path="{{this.path}}">
       <img src="{{this.path}}" alt="{{this.name}}" title="{{this.name}}">
     </div>
     {{/each}}
   </div>
   <div class="picker-controls">
-    <button class="reset-portrait">Reset to Default</button>
+    <button type="button" class="reset-portrait" data-action="resetPortrait">Reset to Default</button>
   </div>
 </div>

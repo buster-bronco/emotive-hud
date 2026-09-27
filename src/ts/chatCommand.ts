@@ -116,8 +116,7 @@ async function handleEmotiveChatMessage(messageText: string, italicize?: boolean
   const portrait = speaker.getFlag(CONSTANTS.MODULE_ID, 'currentPortrait') as string || speaker.img;
 
   // Create chat message content from template
-  const renderTemplateV14 = (foundry as any).applications?.handlebars?.renderTemplate ?? renderTemplate;
-  const content = await renderTemplateV14(
+  const content = await foundry.applications.handlebars.renderTemplate(
     `modules/${CONSTANTS.MODULE_ID}/templates/emotive-chat-message.hbs`,
     {
       portrait,

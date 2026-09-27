@@ -210,8 +210,7 @@ const PORTRAIT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
 // filepicker.browse lists a data folder; keep only image files
 export const scanPortraitFolder = async (folderPath: string): Promise<string[]> => {
-  const browser = await FilePicker.browse("data", folderPath);
-  console.log(CONSTANTS.DEBUG_PREFIX, 'FilePicker browser results:', browser);
+  const browser = await foundry.applications.apps.FilePicker.implementation.browse("data", folderPath);
   return browser.files.filter(file => {
     const lower = file.toLowerCase();
     return PORTRAIT_EXTENSIONS.some(ext => lower.endsWith(ext));

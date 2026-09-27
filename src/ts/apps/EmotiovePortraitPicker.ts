@@ -3,42 +3,44 @@ import { getActorPortraits } from "../settings";
 import { getGame } from "../utils";
 import { emitPortraitUpdated } from "../sockets";
 
-const _fadeOutTime: number = 100;
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-export default class EmotivePortraitPicker extends Application {
+const FADE_OUT_TIME = 100;
+const PADDING = 5;
+
+export default class EmotivePortraitPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   private _actorId: string | null = null;
   private _anchor: HTMLElement | null = null;
   private _portraits: string[] = [];
 
-  private _clickOutsideHandler: ((event: MouseEvent) => void) | null = null;
+  private readonly _clickOutsideHandler = (event: MouseEvent) => {
+    if (!this.element?.contains(event.target as Node)) this.close();
+  };
 
-  constructor(options = {}) {
-    super(options);
-  }
+  // frameless popup placed by hand next to its portrait
+  static override DEFAULT_OPTIONS: foundry.applications.api.ApplicationV2.DefaultOptions = {
+    id: "emotive-portrait-picker",
+    classes: ["emotive-picker-popup"],
+    window: {
+      frame: false,
+      positioned: false,
+    },
+    actions: {
+      selectEmotion: EmotivePortraitPicker._onSelectEmotion as any,
+      resetPortrait: EmotivePortraitPicker._onResetPortrait as any,
+    },
+  };
 
-  static override get defaultOptions(): Application.Options {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "emotive-portrait-picker",
-      template: `modules/${CONSTANTS.MODULE_ID}/templates/emotion-picker.hbs`,
-      classes: ["emotive-picker-popup"],
-      popOut: true,
-      minimizable: false,
-      resizable: false,
-      width: "auto",
-      height: "auto"
-    }) as unknown as Application.Options;
-  }
+  static override PARTS = {
+    picker: { template: `modules/${CONSTANTS.MODULE_ID}/templates/emotion-picker.hbs` },
+  };
 
   get actorId(): string | null {
     return this._actorId;
   }
 
   async showForActor(actorId: string, anchor: HTMLElement): Promise<void> {
-    console.log(CONSTANTS.DEBUG_PREFIX, "Showing picker for actor:", actorId);
-
-    const actorUuid = `Actor.${actorId}`;
-
-    this._portraits = getActorPortraits(actorUuid);
+    this._portraits = getActorPortraits(`Actor.${actorId}`);
 
     if (this._portraits.length === 0) {
       ui.notifications?.warn("No portraits available for this actor");
@@ -49,10 +51,10 @@ export default class EmotivePortraitPicker extends Application {
     this._anchor = anchor;
     // drop a tooltip that was already up on this portrait
     getGame().tooltip?.deactivate();
-    this.render(true);
+    this.render({ force: true });
   }
 
-  override async getData() {
+  override async _prepareContext(_options: any): Promise<any> {
     return {
       actorId: this._actorId,
       portraits: this._portraits.map(path => ({
@@ -62,60 +64,47 @@ export default class EmotivePortraitPicker extends Application {
     };
   }
 
-  override setPosition(): void {
-    if (!this.element || !this._anchor) return;
+  override async _onFirstRender(context: any, options: any): Promise<void> {
+    await super._onFirstRender(context, options);
+    window.addEventListener('click', this._clickOutsideHandler);
+  }
 
-    const position = this._anchor.getBoundingClientRect();
-    const pickerHeight = this.element.height() || 0;
-    const pickerWidth = this.element.width() || 0;
-    const padding = 5;
+  override async _onRender(context: any, options: any): Promise<void> {
+    await super._onRender(context, options);
+    this.element.classList.remove('closing');
+    this.placeNearAnchor();
+  }
 
-    let top: number;
-    let left = Math.max(padding, Math.min(
-      window.innerWidth - pickerWidth - padding,
-      position.left + (position.width / 2) - (pickerWidth / 2)
+  // above the portrait when it fits, else below
+  private placeNearAnchor(): void {
+    if (!this._anchor) return;
+
+    const anchor = this._anchor.getBoundingClientRect();
+    const { width, height } = this.element.getBoundingClientRect();
+
+    const left = Math.max(PADDING, Math.min(
+      window.innerWidth - width - PADDING,
+      anchor.left + (anchor.width / 2) - (width / 2)
     ));
+    const top = anchor.top > height + PADDING
+      ? anchor.top - height - PADDING
+      : Math.min(anchor.bottom + PADDING, window.innerHeight - height - PADDING);
 
-    if (position.top > pickerHeight + padding) {
-      top = position.top - pickerHeight - padding;
-      this.element.css({ top: `${top}px`, left: `${left}px` });
-    } else {
-      top = position.bottom + padding;
-      if (top + pickerHeight > window.innerHeight) {
-        top = window.innerHeight - pickerHeight - padding;
-      }
-      this.element.css({ top: `${top}px`, left: `${left}px` });
-    }
+    this.element.style.left = `${left}px`;
+    this.element.style.top = `${top}px`;
   }
 
-  override activateListeners(html: JQuery<HTMLElement>): void {
-    super.activateListeners(html);
-    html.find('.emotion-item').on('click', this._onSelectEmotion.bind(this));
-    html.find('.reset-portrait').on('click', this._onResetPortrait.bind(this));
-  }
-
-  private async _onSelectEmotion(event: JQuery.ClickEvent): Promise<void> {
+  private static async _onSelectEmotion(this: EmotivePortraitPicker, event: PointerEvent, target: HTMLElement): Promise<void> {
     event.preventDefault();
-    const portraitPath = $(event.currentTarget).data('path');
-
-    if (!this._actorId || !portraitPath) {
-      console.error(CONSTANTS.DEBUG_PREFIX, 'Missing actor ID or portrait path');
-      return;
-    }
-
-    console.log(CONSTANTS.DEBUG_PREFIX, 'Selected portrait:', portraitPath);
+    const portraitPath = target.dataset.path;
+    if (!this._actorId || !portraitPath) return;
 
     try {
-      const game = getGame();
-      const actor = game.actors?.get(this._actorId);
-      if (!actor) {
-        throw new Error('Actor not found');
-      }
+      const actor = getGame().actors?.get(this._actorId);
+      if (!actor) throw new Error('Actor not found');
 
       await actor.setFlag(CONSTANTS.MODULE_ID, 'currentPortrait', portraitPath);
-
       emitPortraitUpdated(this._actorId);
-
       this.close();
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error updating portrait:', error);
@@ -123,25 +112,16 @@ export default class EmotivePortraitPicker extends Application {
     }
   }
 
-  private async _onResetPortrait(event: JQuery.ClickEvent): Promise<void> {
+  private static async _onResetPortrait(this: EmotivePortraitPicker, event: PointerEvent): Promise<void> {
     event.preventDefault();
-
-    if (!this._actorId) {
-      console.error(CONSTANTS.DEBUG_PREFIX, 'Missing actor ID');
-      return;
-    }
+    if (!this._actorId) return;
 
     try {
-      const game = getGame();
-      const actor = game.actors?.get(this._actorId);
-      if (!actor) {
-        throw new Error('Actor not found');
-      }
+      const actor = getGame().actors?.get(this._actorId);
+      if (!actor) throw new Error('Actor not found');
 
       await actor.unsetFlag(CONSTANTS.MODULE_ID, 'currentPortrait');
-
       emitPortraitUpdated(this._actorId);
-
       this.close();
     } catch (error) {
       console.error(CONSTANTS.DEBUG_PREFIX, 'Error resetting portrait:', error);
@@ -149,37 +129,17 @@ export default class EmotivePortraitPicker extends Application {
     }
   }
 
-  override render(force?: boolean, options?: Application.RenderOptions): this {
-    super.render(force, options);
-
-    this._removeClickOutsideHandler();
-
-    this._clickOutsideHandler = (event: MouseEvent) => {
-      const elementDom = this.element?.get(0);
-      if (!elementDom) return;
-      const target = event.target as HTMLElement;
-      if (!elementDom.contains(target)) {
-        this.close();
-      }
-    };
-    window.addEventListener('click', this._clickOutsideHandler);
-
-    return this;
+  override _onClose(options: any): void {
+    super._onClose(options);
+    window.removeEventListener('click', this._clickOutsideHandler);
   }
 
-  private _removeClickOutsideHandler(): void {
-    if (this._clickOutsideHandler) {
-      window.removeEventListener('click', this._clickOutsideHandler);
-      this._clickOutsideHandler = null;
-    }
-  }
-
-  override async close(options?: Application.CloseOptions): Promise<void> {
+  // css fade; frameless windows have no close transition of their own
+  override async close(options: any = {}): Promise<this | void> {
+    if (!this.rendered) return this;
     this._actorId = null;
-    if (this.element) {
-      this.element.fadeOut(_fadeOutTime);
-      await new Promise(resolve => setTimeout(resolve, _fadeOutTime));
-    }
-    return super.close(options);
+    this.element.classList.add('closing');
+    await new Promise(resolve => setTimeout(resolve, FADE_OUT_TIME));
+    return super.close({ ...options, animate: false });
   }
 }
