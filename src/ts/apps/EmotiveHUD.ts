@@ -943,6 +943,10 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
       if (dir.length === 2) {
         layout = this.fitLayout(boxW, boxH, count, aspect, layout.columns);
+      } else if (count === 1) {
+        // lone portrait has nothing to reflow; edges scale it along their axis
+        const horizontal = dir === 'e' || dir === 'w';
+        layout = this.fitLayout(horizontal ? boxW : Infinity, horizontal ? Infinity : boxH, count, aspect, 1);
       } else if (dir === 'e' || dir === 'w') {
         // edge grips keep portrait size and reflow columns
         const cell = layout.width + gap;
