@@ -43,7 +43,7 @@ export const registerSettings = function() {
 
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'actorLimit', {
     name: "Actor Limit",
-    hint: "Maximum number of actors that can be displayed on the Emotive HUD. Warning: Setting this above 9 may make the HUD unwieldy.",
+    hint: "Maximum number of actors that can be displayed on the Emotive HUD. Warning: Setting this above 12 may make the HUD unwieldy.",
     scope: "world",
     config: true,
     type: new (foundry as any).data.fields.NumberField({ nullable: false, integer: true, min: 1, max: 15, step: 1 }),
