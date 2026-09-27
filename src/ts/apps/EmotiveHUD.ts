@@ -1,9 +1,10 @@
 import { EmotiveHUDData, PortraitUpdateData } from "../types";
-import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay } from "../settings";
+import { getIsMinimized, setIsMinimized, getGridColumns, getPortraitRatio, getFloatingPortraitWidth, getHUDState, setHUDState, getActorLimit, getSnapThreshold, getHUDPosition, setHUDPosition, setHUDLayout, getClickToFocus, getTooltipsEnabled, getHUDBackgroundColor, getHUDBackgroundOpacity, getBarFadeDelay } from "../settings";
 import { HUDState, DockSide } from '../types';
 import CONSTANTS from "../constants";
-import { getGame, getModule, isCurrentUserGM } from "../utils";
+import { canManageHUD, getGame, getModule, swallowNextClick } from "../utils";
 import { buildActorTooltip } from "../tooltips";
+import { setupPortraitDrag } from "../hud/portraitDrag";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -363,6 +364,12 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     }
   }
 
+  // window drags, resizes and portrait reorders
+  private isBusy(): boolean {
+    const classes = this.element?.classList;
+    return !!classes && ['dragging', 'resizing', 'reordering'].some(name => classes.contains(name));
+  }
+
   // idle timer; drags and resizes can carry the pointer off the hud
   private scheduleBarFade(): void {
     window.clearTimeout(this.barFadeTimer);
@@ -371,7 +378,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       const hud = element?.querySelector('.emotive-hud') as HTMLElement | null;
       if (!element || !hud || !this.canFadeBar()) return;
 
-      const busy = element.classList.contains('dragging') || element.classList.contains('resizing');
+      const busy = this.isBusy();
       if (busy || element.matches(':hover')) {
         this.scheduleBarFade();
         return;
@@ -439,7 +446,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     const floatingPortraitWidth = getFloatingPortraitWidth();
 
     return {
-      isGM: isCurrentUserGM(),
+      canManage: canManageHUD(),
       isMinimized,
       columns,
       floatingPortraitWidth,
@@ -533,6 +540,25 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
     });
 
     portraits.each((_, portrait) => this.setupPortraitTooltip(portrait));
+
+    const container = this.element?.querySelector<HTMLElement>('.portrait-container');
+    if (this.element && container) {
+      setupPortraitDrag({
+        root: this.element,
+        container,
+        deadZone: EmotiveHUD.DRAG_DEAD_ZONE,
+        canDrag: canManageHUD,
+        onReorder: ids => this.savePortraitOrder(ids),
+      });
+    }
+  }
+
+  // hidden actors past the limit keep their slots at the end
+  private async savePortraitOrder(actorIds: string[]): Promise<void> {
+    const uuids = actorIds.map(id => `Actor.${id}`);
+    const rest = getHUDState().actors.map(actor => actor.uuid).filter(uuid => !uuids.includes(uuid));
+    const actors = [...uuids, ...rest].map((uuid, position) => ({ uuid, position }));
+    await setHUDState({ actors });
   }
 
   // core tooltip manager handles leave/dismiss once activated on the portrait
@@ -550,7 +576,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
 
   private async showPortraitTooltip(portrait: HTMLElement): Promise<void> {
     if (!getTooltipsEnabled() || !portrait.matches(':hover')) return;
-    if (this.element?.classList.contains('dragging') || this.element?.classList.contains('resizing')) return;
+    if (this.isBusy()) return;
     if (getModule().emotivePortraitPicker.rendered) return;
 
     const actor = getGame().actors?.get(portrait.dataset.actorId ?? '');
@@ -845,10 +871,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
       // Save the final position as user preference
       // @ts-ignore - TypeScript types for ApplicationV2 are inconsistent
       if (this.element && moved) {
-        // swallow the click a drag ends with over a button
-        const swallow = (e: MouseEvent) => { e.stopPropagation(); e.preventDefault(); };
-        window.addEventListener('click', swallow, { capture: true, once: true });
-        setTimeout(() => window.removeEventListener('click', swallow, { capture: true }));
+        swallowNextClick();
 
         const before = this.element.getBoundingClientRect();
         this.applyDockState();
@@ -1036,7 +1059,7 @@ export default class EmotiveHUD extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   private _onOpenSelector(event: JQuery.ClickEvent): void {
-    if (!getGame().user?.isGM) {
+    if (!canManageHUD()) {
       ui.notifications?.error("Only GM Can Open Selector");
       return;
     }

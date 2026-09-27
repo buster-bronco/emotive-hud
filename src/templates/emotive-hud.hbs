@@ -1,6 +1,6 @@
 <div class="emotive-hud{{#if isMinimized}} minimized{{/if}}" data-dock="{{dockSide}}" style="--hud-bg-color: {{backgroundColor}}; --hud-bg-alpha: {{backgroundOpacity}};">
     <div class="hud-controls" title="Drag to move window">
-        {{#if isGM}}
+        {{#if canManage}}
             <button class="control-button open-selector" title="Open Emotive HUD Actor Selector" type="button">
                 <i class="fas fa-bars"></i>
             </button>
@@ -12,7 +12,7 @@
     <div class="portrait-container" style="--portrait-count: {{portraits.length}}; --grid-columns: {{columns}}; --floatingPortraitWidth: {{floatingPortraitWidth}}px">
         {{#each portraits}}
         <div class="portrait" data-actor-id="{{actorId}}" style="--portrait-ratio: {{emotivePortraitRatio}}">
-            <img src="{{imgSrc}}" alt="{{name}}">
+            <img src="{{imgSrc}}" alt="{{name}}" draggable="false">
         </div>
         {{/each}}
         {{#if portraits.length}}

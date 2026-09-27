@@ -44,6 +44,18 @@ export function isCurrentUserGM(): boolean {
   return getCurrentUser().isGM;
 }
 
+// same gate as the actor selector; owns hud layout and ordering
+export function canManageHUD(): boolean {
+  return isCurrentUserGM();
+}
+
+// capture-phase listener eats the click a drag ends with
+export function swallowNextClick(): void {
+  const swallow = (e: MouseEvent) => { e.stopPropagation(); e.preventDefault(); };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }));
+}
+
 /**
  * Gets the game module instance for our module.
  * Throws if the module isn't properly registered.

@@ -155,6 +155,17 @@ $bar-height: 34px;
           box-shadow: 0 0 4px rgba(204, 204, 201, 0.2);
         }
 
+        // select glow held while pressed
+        &.held {
+          border-color: rgba(255, 255, 255, 0.6);
+          box-shadow: 0 0 5px rgba(204, 204, 201, 0.4);
+        }
+
+        // empty slot left behind while the ghost is carried
+        &.drag-source {
+          opacity: 0.35;
+        }
+
         &.flash {
           animation: portrait-flash 0.5s ease-out;
         }
@@ -225,6 +236,15 @@ $bar-height: 34px;
     }
   }
 
+  &.reordering {
+    user-select: none;
+    cursor: grabbing;
+
+    .portrait {
+      cursor: grabbing;
+    }
+  }
+
   &.resizing {
     user-select: none;
 
@@ -249,5 +269,22 @@ $bar-height: 34px;
         opacity: 1;
       }
     }
+  }
+}
+// portrait copy carried during a reorder; lives on body above every window
+.emotive-portrait-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 5px rgba(204, 204, 201, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: grabbing;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 }
