@@ -1,6 +1,6 @@
 import CONSTANTS from "../constants";
 import EmotiveHUD from "../apps/EmotiveHUD";
-import { getWindowState, patchWindowState, pruneWindowStates } from "../settings";
+import { getWindowState, patchWindowState, pruneGroupColors, pruneWindowStates } from "../settings";
 import { createGroup, getDisplayGroups, getHUDState, moveActor, reorderGroup } from "../state";
 import { PortraitUpdateData } from "../types";
 import { PortraitDrop } from "./portraitDrag";
@@ -69,6 +69,7 @@ export default class HUDManager {
     // spawning groups have a window state before they reach hud state
     const keep = new Set([...ids, ...getHUDState().groups.map(group => group.id), ...this.shownWaiters.keys()]);
     pruneWindowStates(keep);
+    pruneGroupColors(keep);
   }
 
   renderAll(): void {

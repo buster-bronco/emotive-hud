@@ -36,13 +36,25 @@ export const registerSettings = function() {
     }
   });
 
-  // group id -> position, minimize, layout and tint of that window
+  // group id -> position, minimize and layout of that window
   gameInstance.settings.register(CONSTANTS.MODULE_ID, 'windowStates', {
     name: 'HUD Window States',
     scope: 'client',
     config: false,
     type: Object,
     default: {} as Record<string, WindowState>,
+  });
+
+  // group id -> tint; world scope so every client sees the gm's colors
+  gameInstance.settings.register(CONSTANTS.MODULE_ID, 'groupColors', {
+    name: 'HUD Group Colors',
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {} as Record<string, string>,
+    onChange: () => {
+      Hooks.callAll(`${CONSTANTS.MODULE_ID}.appearanceChanged`);
+    }
   });
 
   // legacy single-window settings; only read by migrateWindowStates
@@ -319,10 +331,52 @@ export const getPortraitRatio = (): number => {
 }
 
 // color inputs only take #rrggbb
+const isHexColor = (color: unknown): color is string => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color);
+
 export const getDefaultHUDColor = (): string => {
-  const color = String(getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor') ?? '');
-  return /^#[0-9a-f]{6}$/i.test(color) ? color : '#000000';
+  const color = getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundColor');
+  return isHexColor(color) ? color : '#000000';
 }
+
+const getGroupColors = (): Record<string, string> => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, 'groupColors') as Record<string, string>;
+};
+
+// uncolored groups fall back to the default tint
+export const getGroupColor = (groupId: string): string => {
+  const color = getGroupColors()[groupId];
+  return isHexColor(color) ? color : getDefaultHUDColor();
+};
+
+// world settings are gm-writable only
+export const setGroupColor = async (groupId: string, color: string): Promise<void> => {
+  if (!getGame().user?.isGM || !isHexColor(color)) return;
+  const colors = foundry.utils.deepClone(getGroupColors());
+  colors[groupId] = color;
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'groupColors', colors);
+};
+
+// drops colors for groups that no longer exist
+export const pruneGroupColors = async (keep: Set<string>): Promise<void> => {
+  if (!getGame().user?.isGM) return;
+  const colors = getGroupColors();
+  const stale = Object.keys(colors).filter(id => !keep.has(id));
+  if (!stale.length) return;
+  const pruned = foundry.utils.deepClone(colors);
+  stale.forEach(id => delete pruned[id]);
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'groupColors', pruned);
+};
+
+// copies the gm's old client-side window tints into the world setting once
+export const migrateGroupColors = async (): Promise<void> => {
+  if (!getGame().user?.isGM || Object.keys(getGroupColors()).length) return;
+  const states = getWindowStates() as Record<string, WindowState & { color?: string }>;
+  const colors = Object.fromEntries(
+    Object.entries(states).filter(([, state]) => isHexColor(state.color)).map(([id, state]) => [id, state.color!])
+  );
+  if (!Object.keys(colors).length) return;
+  await getGame().settings.set(CONSTANTS.MODULE_ID, 'groupColors', colors);
+};
 
 export const getHUDBackgroundOpacity = (): number => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, 'hudBackgroundOpacity') as number;

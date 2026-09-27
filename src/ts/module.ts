@@ -1,7 +1,7 @@
 import "../styles/style.scss";
 import { CONSTANTS } from "./constants";
 import { EmotiveHudModule } from "./types";
-import { migrateWindowStates, registerSettings } from "./settings";
+import { migrateGroupColors, migrateWindowStates, registerSettings } from "./settings";
 import { DEFAULT_GROUP_ID, getHUDState, migrateHUDState } from "./state";
 import HUDManager from "./hud/HUDManager";
 import EmotiveActorSelector from "./apps/EmotiveActorSelector";
@@ -37,6 +37,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   await migrateHUDState();
   await migrateWindowStates(getHUDState().groups[0]?.id ?? DEFAULT_GROUP_ID);
+  await migrateGroupColors();
   module.hud.start();
 });
 

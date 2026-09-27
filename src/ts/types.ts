@@ -87,7 +87,6 @@ export type WindowState = {
   minimized: boolean;
   columns: number;
   width: number;
-  color?: string;
 };
 
 // subset of the chat commander module api (game.chatCommands)

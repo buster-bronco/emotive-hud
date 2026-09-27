@@ -6,6 +6,7 @@ declare global {
     "emotive-hud.actorConfigs": Record<string, ActorConfig>;
     "emotive-hud.hudState": HUDState;
     "emotive-hud.windowStates": Record<string, WindowState>;
+    "emotive-hud.groupColors": Record<string, string>;
     "emotive-hud.isMinimized": boolean;
     "emotive-hud.actorLimit": number;
     "emotive-hud.gridColumns": number;
