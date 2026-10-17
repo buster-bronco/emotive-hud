@@ -22,7 +22,7 @@ export default class EmotiveActorSelector extends Application {
     this._loadFromSettings();
 
     this._dragDrop = [
-      new DragDrop({
+      new foundry.applications.ux.DragDrop.implementation({
         dragSelector: ".actor-item",
         dropSelector: ".drag-area",
         permissions: {
